@@ -17,10 +17,10 @@ const optionalFields = [
 ];
 const queue = [];
 let reportPage = 0;
-const reportSteps = ['map', 'damage', 'impact', 'contact'];
-const stepHeadings = { map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
+const reportSteps = ['choose', 'map', 'damage', 'impact', 'contact'];
+const stepHeadings = { choose: 'choice-title', map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
 let batchId = globalId();
-let mode = 'point';
+let mode = null;
 let points = [];
 let draftDitch = null;
 let photos = [];
@@ -70,20 +70,39 @@ function updateBasemap() {
 $('basemap').addEventListener('change', updateBasemap);
 updateBasemap();
 const countyView = () => map.fitBounds(countyBounds, { padding: [10, 10], animate: false });
-countyView();
+map.setView(countyBounds.getCenter(), 9, { animate: false });
+let mapOpened = false;
 $('county-view').addEventListener('click', countyView);
 L.control.scale({ metric: false }).addTo(map);
 
 map.createPane('ditches').style.zIndex = 390;
 const ditchLabels = L.layerGroup().addTo(map);
 
+function renderProgress() {
+  const step = $('layout').dataset.activeStep;
+  const location = editing ? queue.findIndex(report => report.id === editing) + 1 : queue.length + 1;
+  const progress = step === 'review'
+    ? (queue.length ? 'Review · Location ' + (reportPage + 1) + ' of ' + queue.length : 'Review reports')
+    : (editing ? 'Editing location ' : 'Location ') + location + ' · Step ' + (reportSteps.indexOf(step) + 1) + ' of ' + reportSteps.length;
+  for (const id of ['step-progress', 'expanded-step-progress']) {
+    if ($(id).textContent !== progress) $(id).textContent = progress;
+  }
+}
+
 function setStep(step, focusHeading = false) {
   $('layout').dataset.activeStep = step;
-  const location = editing ? queue.findIndex(report => report.id === editing) + 1 : queue.length + 1;
-  $('step-progress').textContent = step === 'review' ? 'Saved locations' :
-    (editing ? 'Editing location ' : 'Location ') + location + ' · Step ' + (reportSteps.indexOf(step) + 1) + ' of ' + reportSteps.length;
-  if (step === 'map') map.invalidateSize({ pan: false });
-  if (focusHeading) $(stepHeadings[step]).focus({ preventScroll: true });
+  renderProgress();
+  if (focusHeading) {
+    window.scrollTo(0, 0);
+    $(stepHeadings[step]).focus({ preventScroll: true });
+  }
+  if (step === 'map') {
+    map.invalidateSize({ pan: false });
+    if (!mapOpened) {
+      countyView();
+      mapOpened = true;
+    }
+  }
 }
 for (const button of document.querySelectorAll('[data-go]')) {
   button.addEventListener('click', () => {
@@ -136,14 +155,6 @@ expandedMap.addEventListener('close', () => {
 
 const helpDialog = $('report-help');
 $('show-help').addEventListener('click', () => helpDialog.showModal());
-try {
-  if (!sessionStorage.getItem('ditch-portal-help-seen')) helpDialog.showModal();
-  helpDialog.addEventListener('close', () => {
-    try { sessionStorage.setItem('ditch-portal-help-seen', 'yes'); } catch {}
-  });
-} catch {
-  helpDialog.showModal();
-}
 const queuedLayer = L.layerGroup().addTo(map);
 const activeLayer = L.layerGroup().addTo(map);
 const marker = point => L.circleMarker(point, {
@@ -369,9 +380,6 @@ function renderDrawing() {
   $('map-instruction').textContent = mode === 'point'
     ? 'Zoom in, then tap or click the damaged spot.'
     : 'Tap or click the start, each bend, and the end of the damaged stretch.';
-  for (const button of document.querySelectorAll('[data-mode]')) {
-    button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
-  }
   if (!points.length) {
     message($('location-status'));
     return;
@@ -392,9 +400,12 @@ function clearLocation() {
 }
 for (const button of document.querySelectorAll('[data-mode]')) {
   button.addEventListener('click', () => {
-    if (mode === button.dataset.mode || sending || uncertain || preparingPhotos) return;
-    mode = button.dataset.mode;
-    clearLocation();
+    if (sending || uncertain || preparingPhotos) return;
+    if (mode !== button.dataset.mode) {
+      mode = button.dataset.mode;
+      clearLocation();
+    }
+    setStep('map', true);
   });
 }
 $('undo').addEventListener('click', () => {
@@ -500,7 +511,7 @@ $('photos').addEventListener('change', async event => {
 
 function resetForm() {
   editing = null;
-  mode = 'point';
+  mode = null;
   points = [];
   draftDitch = null;
   photos = [];
@@ -574,6 +585,7 @@ function validateReportFields(step) {
   const invalid = [...group.querySelectorAll('input, select, textarea')].find(field => !field.validity.valid);
   if (!invalid) return true;
   setStep(invalid.closest('[data-form-step]').dataset.formStep);
+  message($('form-message'), invalid.validationMessage, true);
   invalid.reportValidity();
   return false;
 }
@@ -618,8 +630,10 @@ function renderQueue() {
   $('queue-count').textContent = queue.length + (queue.length === 1 ? ' report' : ' reports');
   $('empty-queue').hidden = queue.length > 0;
   $('queue-actions').hidden = queue.length === 0;
+  $('review-instructions').hidden = queue.length === 0;
   $('review-saved').hidden = queue.length === 0;
   reportPage = Math.max(0, Math.min(reportPage, queue.length - 1));
+  renderProgress();
   $('queue-pagination').hidden = queue.length < 2;
   $('report-page').textContent = (reportPage + 1) + ' of ' + queue.length;
   $('previous-report').disabled = reportPage <= 0;
@@ -678,9 +692,10 @@ function updateControls() {
   for (const button of $('queue').querySelectorAll('button')) button.disabled = locked || Boolean(editing);
 }
 
-$('add-another').addEventListener('click', () => setStep('map', true));
+$('add-another').addEventListener('click', () => setStep('choose', true));
 $('review-saved').addEventListener('click', () => {
   if (hasDraft()) {
+    setStep('map', true);
     message($('location-status'), 'Finish this location before reviewing your saved reports.', true);
     return;
   }

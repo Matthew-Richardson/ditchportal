@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css">
+  <link rel="stylesheet" href="./styles.css?v=report-progress">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js"></script>
+  <script type="module" src="./app.js?v=report-progress"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -20,10 +20,21 @@
   </header>
   <main class="page-width">
     <p id="setup-status" class="banner" role="status" hidden></p>
-    <p class="step-progress" id="step-progress">Location 1 · Step 1 of 4</p>
-    <div class="layout" id="layout" data-active-step="map">
+    <p class="step-progress" id="step-progress" role="status">Location 1 · Step 1 of 5</p>
+    <div class="layout" id="layout" data-active-step="choose">
+      <section class="panel form-panel choice-panel" aria-labelledby="choice-title">
+        <h2 id="choice-title" tabindex="-1">Is the damage at one spot or along a stretch of ditch?</h2>
+        <p class="step-instructions">Choose one to start. You can add more locations before sending your report to the county.</p>
+        <div class="modes">
+          <button type="button" class="choice" data-mode="point"><strong>One damaged spot</strong><span>Mark one point on the map, such as a broken gate or a small washout.</span></button>
+          <button type="button" class="choice" data-mode="line"><strong>A stretch of ditch</strong><span>Trace the part of the ditch that was damaged from start to end.</span></button>
+        </div>
+        <p class="step-instructions">Some ditches are missing from the county map. You can still report damage there.</p>
+        <button type="button" class="subtle" id="review-saved" hidden>Review saved locations</button>
+      </section>
       <div id="map-home" hidden></div>
       <section class="panel map-panel" id="map-panel" aria-labelledby="map-title">
+        <p class="step-progress expanded-only" id="expanded-step-progress" role="status"></p>
         <div class="panel-head">
           <h2 id="map-title" tabindex="-1">Mark the damage location</h2>
           <div class="map-controls">
@@ -34,6 +45,7 @@
             <button type="button" class="subtle expanded-only" id="close-expanded-map">Exit full screen</button>
           </div>
         </div>
+        <p class="step-instructions map-instructions">Search by address or ditch name, or use the map to find the damage. Follow the marking instructions below.</p>
         <form class="map-search" id="map-search" role="search">
           <label class="sr-only" for="search-input">Search map by street address or ditch name</label>
           <input id="search-input" type="search" maxlength="100" placeholder="Street address or ditch name" autocomplete="off" aria-describedby="search-status">
@@ -44,11 +56,6 @@
           </div>
         </form>
         <div class="map-drawing">
-          <span id="geometry-label" class="sr-only">Mark damage</span>
-          <div class="modes" role="group" aria-labelledby="geometry-label">
-            <button type="button" data-mode="point" aria-pressed="true">One damaged spot</button>
-            <button type="button" data-mode="line" aria-pressed="false">A stretch of ditch</button>
-          </div>
           <div class="location">
             <p id="map-instruction">Zoom in, then select the damaged spot on the map.</p>
             <p id="location-status" role="status" hidden></p>
@@ -68,7 +75,7 @@
         </div>
         <p id="layer-status" class="sr-only" role="status"></p>
         <div class="step-actions">
-          <button type="button" class="subtle" id="review-saved" hidden>Review saved reports</button>
+          <button type="button" class="subtle" data-go="choose">Back</button>
           <button type="button" class="primary" data-go="damage" data-check="map">Continue to damage details</button>
         </div>
       </section>
@@ -78,6 +85,7 @@
             <legend class="sr-only">Damage report</legend>
             <section class="form-group" data-form-step="damage" aria-labelledby="form-title">
               <h2 id="form-title" tabindex="-1">Describe the damage</h2>
+              <p class="step-instructions">Choose the closest damage type and tell us what happened. A nearby landmark can help staff find it. Add photos if you have them.</p>
               <label class="field">Ditch name <small>If known</small>
                 <input id="ditch-name" maxlength="150">
               </label>
@@ -106,7 +114,7 @@
             </section>
             <section class="form-group" data-form-step="impact" aria-labelledby="impact-title">
               <h2 id="impact-title" tabindex="-1">Share impacts or repairs <small>Optional</small></h2>
-              <p class="help">Fill in what you know, or leave this step blank and continue.</p>
+              <p class="step-instructions">Tell us if water delivery changed, anything nearby is at risk, or repairs have started. Fill in what you know. You can leave this step blank and continue.</p>
               <div class="field-pair">
                 <label class="field">Ditch company or operator
                   <input id="ditch_operator" maxlength="200">
@@ -141,7 +149,7 @@
             </section>
             <section class="form-group contact-group" data-form-step="contact" aria-labelledby="contact-title">
               <h2 id="contact-title" tabindex="-1">Enter your contact information</h2>
-              <p class="help" id="contact-help">Enter your name and a phone number or email for county follow-up.</p>
+              <p class="step-instructions" id="contact-help">Enter your name and either a phone number or an email. Select <strong>Save this location</strong> to review it before sending.</p>
               <div class="contact-fields">
                 <label class="field">Name <input id="contact_name" maxlength="150" autocomplete="name" required></label>
                 <label class="field">Phone <input id="contact_phone" type="tel" maxlength="50" autocomplete="tel" aria-describedby="contact-help"></label>
@@ -160,6 +168,7 @@
       <section class="panel queue-panel" aria-labelledby="queue-title">
         <div class="queue-head"><h2 id="queue-title" tabindex="-1">Review and send reports</h2><span id="queue-count" aria-live="polite">0 reports</span></div>
         <p id="empty-queue" class="help">There are no saved reports to send.</p>
+        <p class="step-instructions" id="review-instructions" hidden>Check your saved locations. You can edit a report, add another location, or send all saved reports to the county.</p>
         <ol id="queue" class="queue"></ol>
         <div id="queue-pagination" class="queue-pagination" hidden>
           <button type="button" class="subtle" id="previous-report">Previous location</button>
@@ -171,7 +180,7 @@
           <button type="button" class="primary" id="send">Send reports</button>
           <p class="help" id="send-help">Saved reports stay in this tab until you send them.</p>
         </div>
-        <div class="step-actions"><button type="button" class="subtle" data-go="map">Mark a location</button></div>
+        <div class="step-actions"><button type="button" class="subtle" data-go="choose">Start a location</button></div>
         <p id="send-message" class="form-message" role="status" hidden></p>
       </section>
     </div>
