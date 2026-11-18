@@ -79,6 +79,74 @@ let mapOpened = false;
 $('county-view').addEventListener('click', countyView);
 L.control.scale({ metric: false }).addTo(map);
 
+let vectorSupport;
+function loadVectorSupport() {
+  vectorSupport ??= (async () => {
+    const webgl = document.createElement('canvas').getContext('webgl2');
+    if (!webgl) throw new Error('This browser cannot display the county reference layers.');
+    webgl.getExtension('WEBGL_lose_context')?.loseContext();
+    const scripts = [
+      ['esri-leaflet@3.0.18/dist/esri-leaflet.js', '22wLLg9lMgz5Ix2IaWloXs+ScWqPCKxBgJFpSaCl04kKF6e6/GSdoGjtKky8Maac'],
+      ['esri-leaflet-vector@4.3.2/dist/esri-leaflet-vector.js', 'mHZ6EpQireK/7bmjGMfM/OwDdnR9QSQY0o6HKLzCjiekUEgSuaEr03W+1G7FFn31'],
+    ];
+    for (const [path, hash] of scripts) {
+      await new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/' + path;
+        script.crossOrigin = 'anonymous';
+        script.integrity = 'sha384-' + hash;
+        script.onload = resolve;
+        script.onerror = () => {
+          script.remove();
+          reject(new Error('The vector map renderer could not load.'));
+        };
+        document.head.append(script);
+      });
+    }
+  })().catch(error => {
+    vectorSupport = undefined;
+    throw error;
+  });
+  return vectorSupport;
+}
+
+for (const [inputId, service, name, zIndex] of [
+  ['show-roads', 'Roads', 'Roads', 350],
+  ['show-addresses', 'AddressPoints', 'Address points', 360],
+]) {
+  const input = $(inputId);
+  const status = $('reference-layer-status');
+  const pane = map.createPane(service);
+  pane.style.zIndex = zIndex;
+  pane.style.pointerEvents = 'none';
+  let loading;
+  let layer;
+
+  input.addEventListener('change', async () => {
+    message(status);
+    if (!input.checked) {
+      if (layer) map.removeLayer(layer);
+      return;
+    }
+    try {
+      loading ??= loadVectorSupport().then(() => new Promise((resolve, reject) => {
+        const overlay = L.esri.Vector.vectorTileLayer(COUNTY + '/Hosted/' + service + '/VectorTileServer', {
+          pane: service, attribution: 'La Plata County GIS',
+        });
+        overlay.once('ready', () => resolve(overlay));
+        overlay.once('load-error', reject);
+      }));
+      layer = await loading;
+      if (input.checked) layer.addTo(map);
+    } catch (error) {
+      loading = undefined;
+      if (!input.checked) return;
+      input.checked = false;
+      message(status, error instanceof Error ? error.message : name + ' could not load.');
+    }
+  });
+}
+
 map.createPane('ditches').style.zIndex = 390;
 const ditchLabels = L.layerGroup().addTo(map);
 

@@ -81,11 +81,17 @@ input, select, textarea { padding: .48rem .55rem; font-weight: 400; }
 textarea { resize: vertical; min-height: 2.75rem; }
 input[type="file"] { padding: .22rem; font-size: .8rem; }
 input::file-selector-button { font: inherit; color: var(--field-green); background: var(--field-light); border: 0; border-radius: .3rem; padding: .38rem .55rem; margin-right: .5rem; cursor: pointer; }
-button { padding: .3rem .6rem; min-height: 2.65rem; font-size: .95rem; font-weight: 650; }
+button, .map-controls select, .map-layers summary { padding: .3rem .6rem; min-height: 2.65rem; font-size: .95rem; font-weight: 650; }
 button:hover:enabled { background: var(--field-light); }
 .subtle { color: var(--field-green); }
-.map-controls select { min-height: 2.65rem; padding: .3rem .6rem; font-size: .95rem; font-weight: 650; }
-.map-controls select:hover:enabled { background: var(--field-light); }
+.map-controls select:hover:enabled, .map-layers summary:hover { background: var(--field-light); }
+.map-layers { position: relative; }
+.map-layers[open] { z-index: 1101; }
+.map-layers summary { cursor: pointer; align-content: center; border: 1px solid #aebdab; border-radius: .4rem; }
+.map-layer-options { position: absolute; right: 0; top: calc(100% + .25rem); width: max-content; max-width: 13rem; padding: .35rem .65rem; border: 1px solid #aebdab; border-radius: .4rem; background: white; box-shadow: 0 4px 12px #24362730; }
+.map-layer-options label { display: flex; align-items: center; gap: .45rem; min-height: 2.5rem; cursor: pointer; }
+.map-layer-options input { margin: 0; accent-color: var(--field-green); }
+.map-layer-options p { margin-block: .2rem .4rem; }
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
 .modes [aria-pressed="true"], .outline { background: var(--field-light); color: var(--field-dark); border-color: #72906b; }
 #map-instruction { font-size: 1.05rem; font-weight: 700; line-height: 1.35; }
@@ -147,10 +153,12 @@ dialog::backdrop { background: #14251bb3; }
   .contact-fields { display: block; }
   .map-panel { height: calc(100dvh - 8.5rem); }
   .map-panel .map-controls { width: 100%; }
+  .map-controls:has(.map-layers[open]) { position: relative; z-index: 1101; }
+  .map-layers[open] { position: static; }
   .legend { display: grid; font-size: .75rem; gap: .05rem; }
 }
 @media (max-width: 420px) {
-  .map-controls button, .map-controls select, .map-footer-actions button { font-size: .82rem; }
+  .map-controls button, .map-controls select, .map-layers summary, .map-footer-actions button { font-size: .82rem; }
   #report-help { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); padding: .8rem; }
   #report-help section { margin-top: .5rem; padding-top: .45rem; }
   #report-help form { margin-top: .65rem; }
