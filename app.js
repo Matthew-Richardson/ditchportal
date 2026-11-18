@@ -15,6 +15,9 @@ const optionalFields = [
   'acres_affected', 'repair_status', 'contact_name', 'contact_phone', 'contact_email',
 ];
 const queue = [];
+let reportPage = 0;
+const stepButtons = [...document.querySelectorAll('[data-step]')];
+const stepHeadings = { map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
 let batchId = globalId();
 let mode = 'point';
 let points = [];
@@ -50,7 +53,7 @@ const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/W
   maxNativeZoom: 19, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
 }).addTo(map);
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
-  bounds: countyBounds, attribution: 'La Plata County GIS, 2025 aerial imagery',
+  bounds: countyBounds, minNativeZoom: 11, attribution: 'La Plata County GIS, 2025 aerial imagery',
 });
 aerial.on('tileerror', () => {
   message($('layer-status'), 'The topographic map fills gaps in aerial imagery.');
@@ -62,12 +65,41 @@ $('basemap').addEventListener('change', () => {
     map.removeLayer(aerial);
   }
 });
+if ($('basemap').value === 'aerial') map.addLayer(aerial);
 const countyView = () => map.fitBounds(countyBounds, { padding: [10, 10], animate: false });
 countyView();
 $('county-view').addEventListener('click', countyView);
 L.control.scale({ metric: false }).addTo(map);
 
 map.createPane('ditches').style.zIndex = 390;
+const ditchLabels = L.layerGroup().addTo(map);
+
+function setStep(step, focusHeading = false) {
+  $('layout').dataset.activeStep = step;
+  for (const button of stepButtons) {
+    if (button.dataset.step === step) button.setAttribute('aria-current', 'step');
+    else button.removeAttribute('aria-current');
+  }
+  if (step === 'map') map.invalidateSize({ pan: false });
+  if (focusHeading) $(stepHeadings[step]).focus({ preventScroll: true });
+}
+for (const button of document.querySelectorAll('[data-step], [data-go]')) {
+  button.addEventListener('click', () => setStep(button.dataset.step || button.dataset.go, true));
+}
+new ResizeObserver(() => {
+  if ($('map').clientWidth) map.invalidateSize({ pan: false });
+}).observe($('map'));
+
+const helpDialog = $('report-help');
+$('show-help').addEventListener('click', () => helpDialog.showModal());
+try {
+  if (!sessionStorage.getItem('ditch-portal-help-seen')) helpDialog.showModal();
+  helpDialog.addEventListener('close', () => {
+    try { sessionStorage.setItem('ditch-portal-help-seen', 'yes'); } catch {}
+  });
+} catch {
+  helpDialog.showModal();
+}
 const queuedLayer = L.layerGroup().addTo(map);
 const activeLayer = L.layerGroup().addTo(map);
 const marker = (point, style = damageStyle) => L.circleMarker(point, {
@@ -93,16 +125,129 @@ async function loadDitches() {
         name: [properties.Name, properties.FEAT_NAME, properties.GNIS_Name]
           .find(value => value?.trim() && !/^(unnamed|unknown|null|ditch)$/i.test(value.trim()))?.trim() || '',
       };
-      return paths.map(path => ({ path: path.map(([lng, lat]) => L.latLng(lat, lng)), ditch }));
+      return paths.filter(path => path.length > 1).map(path => {
+        const points = path.map(([lng, lat]) => L.latLng(lat, lng));
+        return { path: points, ditch, anchor: points[Math.floor(points.length / 2)], length: lengthFeet(points) };
+      });
     });
-    L.geoJSON(data, { pane: 'ditches', interactive: false, style: { color: mapColors.getPropertyValue('--ditch').trim(), weight: 2.8, opacity: .93 },
+    const ditchStroke = { pane: 'ditches', interactive: false };
+    L.geoJSON(data, { ...ditchStroke, style: { color: '#fff8fc', weight: 5, opacity: .85 } }).addTo(map);
+    L.geoJSON(data, { ...ditchStroke, style: { color: mapColors.getPropertyValue('--ditch').trim(), weight: 2.8, opacity: 1 },
       attribution: 'La Plata County GIS, Irrigation Ditches',
     }).addTo(map);
+    ditchPaths.sort((a, b) => b.length - a.length);
+    renderDitchLabels();
   } catch {
     message($('layer-status'), 'Mapped ditches are temporarily unavailable. You can still mark damage on the map.');
   }
 }
-loadDitches();
+const ditchesLoaded = loadDitches();
+
+function renderDitchLabels() {
+  ditchLabels.clearLayers();
+  if (map.getZoom() < 12 || !$('map').clientWidth) return;
+  const bounds = map.getBounds().pad(-.04);
+  const names = new Set();
+  const occupied = [];
+  for (const { ditch, path, anchor } of ditchPaths) {
+    const key = ditch.name.toLowerCase();
+    if (!key || names.has(key)) continue;
+    const labelPoint = bounds.contains(anchor) ? anchor : path.find(point => bounds.contains(point));
+    if (!labelPoint) continue;
+    const point = map.latLngToContainerPoint(labelPoint);
+    const halfWidth = Math.min(175, ditch.name.length * 3.4 + 8);
+    if (occupied.some(label => Math.abs(label.y - point.y) < 21 && Math.abs(label.x - point.x) < label.halfWidth + halfWidth)) continue;
+    occupied.push({ x: point.x, y: point.y, halfWidth });
+    names.add(key);
+    const text = document.createElement('span');
+    text.textContent = ditch.name;
+    L.tooltip({ permanent: true, direction: 'center', className: 'ditch-name-label', opacity: 1 })
+      .setLatLng(labelPoint).setContent(text).addTo(ditchLabels);
+  }
+}
+map.on('moveend', renderDitchLabels);
+
+async function findAddresses(term, signal) {
+  if (!/^\d/.test(term)) return [];
+  const normalized = term.toUpperCase().replace(/\bCOUNTY ROAD\b/g, 'CR').replace(/[^A-Z0-9.' -]/g, '');
+  const prefix = normalized.replaceAll("'", "''");
+  const params = new URLSearchParams({
+    f: 'json', where: "UPPER(PROPERTY_A) LIKE '" + prefix + "%'",
+    outFields: 'PROPERTY_A', returnGeometry: 'true', outSR: '4326', resultRecordCount: '5',
+  });
+  const response = await fetch(COUNTY + '/Operational_Layers/Search_and_Select_Query/MapServer/0/query?' + params, { signal });
+  const data = await response.json();
+  if (!response.ok || !Array.isArray(data.features)) throw new Error('Address search unavailable');
+  return data.features.filter(feature => feature.geometry && feature.attributes.PROPERTY_A).map(feature => ({
+    label: feature.attributes.PROPERTY_A,
+    locate: () => map.setView([feature.geometry.y, feature.geometry.x], 17),
+  }));
+}
+
+function findDitches(term) {
+  const names = new Map();
+  const words = term.toLowerCase().split(/\s+/);
+  for (const { path, ditch } of ditchPaths) {
+    const key = ditch.name.toLowerCase();
+    if (!key || !words.every(word => key.includes(word))) continue;
+    if (names.has(key)) names.get(key).bounds.extend(path);
+    else names.set(key, { label: ditch.name, bounds: L.latLngBounds(path) });
+  }
+  return [...names.values()].sort((a, b) => a.label.localeCompare(b.label)).slice(0, 6).map(result => ({
+    label: result.label,
+    locate: () => map.fitBounds(result.bounds, { maxZoom: 17, padding: [18, 18] }),
+  }));
+}
+
+let searchRequest;
+function closeSearch() {
+  searchRequest?.abort();
+  $('search-response').hidden = true;
+}
+$('search-input').addEventListener('input', closeSearch);
+$('map-search').addEventListener('keydown', event => {
+  if (event.key === 'Escape') {
+    closeSearch();
+    $('search-input').focus();
+  }
+});
+document.addEventListener('click', event => {
+  if (!$('map-search').contains(event.target)) closeSearch();
+});
+$('map-search').addEventListener('submit', async event => {
+  event.preventDefault();
+  closeSearch();
+  const term = $('search-input').value.trim();
+  const holder = $('search-response');
+  const status = $('search-status');
+  const list = $('search-results');
+  holder.hidden = false;
+  list.hidden = true;
+  list.replaceChildren();
+  message(status, term.length < 2 ? 'Enter a street address or ditch name.' : 'Searching…');
+  if (term.length < 2) return;
+  searchRequest = new AbortController();
+  const request = searchRequest;
+  const tasks = await Promise.allSettled([
+    findAddresses(term, AbortSignal.any([request.signal, AbortSignal.timeout(9000)])),
+    ditchesLoaded.then(() => findDitches(term)),
+  ]);
+  if (request.signal.aborted) return;
+  const matches = tasks.flatMap(task => task.status === 'fulfilled' ? task.value : []).slice(0, 6);
+  message(status, matches.length ? '' : tasks[0].status === 'rejected'
+    ? 'Address search is unavailable. Try a ditch name or use the map.' : 'No matches. Try a shorter address or ditch name.');
+  list.hidden = !matches.length;
+  for (const match of matches) {
+    const item = document.createElement('li');
+    item.append(createButton(match.label, () => {
+      $('search-input').value = match.label;
+      match.locate();
+      closeSearch();
+      $('map').focus({ preventScroll: true });
+    }));
+    list.append(item);
+  }
+});
 
 function nearestDitch(location) {
   const click = map.latLngToLayerPoint(location);
@@ -197,7 +342,7 @@ function clearLocation() {
 }
 for (const button of document.querySelectorAll('[data-mode]')) {
   button.addEventListener('click', () => {
-    if (mode === button.dataset.mode) return;
+    if (mode === button.dataset.mode || sending || uncertain || preparingPhotos) return;
     mode = button.dataset.mode;
     clearLocation();
   });
@@ -227,7 +372,7 @@ function renderPhotos() {
     const item = document.createElement('li');
     const name = document.createElement('span');
     name.textContent = photo.name;
-    item.append(name, createButton('Remove', () => {
+    item.append(name, createButton('×', () => {
       photos = photos.filter(value => value !== photo);
       renderPhotos();
     }, 'Remove photo ' + photo.name));
@@ -309,7 +454,8 @@ function resetForm() {
   draftDitch = null;
   photos = [];
   $('damage-form').reset();
-  for (const detail of $('damage-form').querySelectorAll('details')) detail.open = false;
+  $('contact_name').setCustomValidity('');
+  $('contact_phone').setCustomValidity('');
   $('add-report').textContent = 'Add damage report';
   $('cancel-edit').hidden = true;
   renderDrawing();
@@ -320,16 +466,19 @@ $('cancel-edit').addEventListener('click', () => {
   resetForm();
   message($('form-message'));
   renderQueue();
+  setStep('review', true);
 });
 
 $('damage-form').addEventListener('submit', event => {
   event.preventDefault();
   if (sending || uncertain || preparingPhotos) return;
   if (!points.length || (mode === 'line' && (points.length < 2 || lengthFeet(points) < 1))) {
-    message($('form-message'), mode === 'point' ? 'Mark the damage location on the map.' :
+    setStep('map', true);
+    message($('location-status'), mode === 'point' ? 'Mark the damage location on the map.' :
       'Mark at least two distinct points for the damaged stretch.', true);
     return;
   }
+  if (!validateReportFields()) return;
   if (!editing && queue.length >= maxReports) {
     message($('form-message'), 'Send the current batch before adding more than 10 reports.', true);
     return;
@@ -349,15 +498,36 @@ $('damage-form').addEventListener('submit', event => {
   if (index < 0) queue.push(report);
   else queue[index] = report;
   resetForm();
-  message($('form-message'), index < 0 ? 'Report added. Mark another location or review the reports below.' : 'Changes saved.');
+  message($('form-message'));
   message($('send-message'));
+  reportPage = index < 0 ? queue.length - 1 : index;
   renderQueue();
+  setStep('review', true);
 });
+
+function validateReportFields() {
+  const name = $('contact_name');
+  const phone = $('contact_phone');
+  const email = $('contact_email');
+  name.setCustomValidity(name.value.trim() ? '' : 'Enter your name.');
+  phone.setCustomValidity(phone.value.trim()
+    ? (phone.value.replace(/\D/g, '').length >= 7 ? '' : 'Enter a phone number with at least 7 digits.')
+    : (email.value.trim() ? '' : 'Enter a phone number or email address.'));
+  const invalid = [...$('damage-form').querySelectorAll('input, select, textarea')].find(field => !field.validity.valid);
+  if (!invalid) return true;
+  setStep(invalid.closest('[data-form-step]').dataset.formStep);
+  invalid.reportValidity();
+  return false;
+}
+$('contact_name').addEventListener('input', () => $('contact_name').setCustomValidity(''));
+for (const field of ['contact_phone', 'contact_email']) {
+  $(field).addEventListener('input', () => $('contact_phone').setCustomValidity(''));
+}
 
 function editReport(report) {
   if (hasDraft()) {
     message($('form-message'), 'Add or clear the current damage details before editing another report.', true);
-    $('form-title').scrollIntoView({ block: 'nearest' });
+    setStep('damage', true);
     return;
   }
   editing = report.id;
@@ -371,12 +541,12 @@ function editReport(report) {
   for (const field of optionalFields) $(field).value = report.details[field];
   $('add-report').textContent = 'Save changes';
   $('cancel-edit').hidden = false;
+  setStep('map', true);
   map.fitBounds(L.latLngBounds(points), { maxZoom: 17, padding: [36, 36] });
   renderDrawing();
   renderPhotos();
   renderQueue();
-  $('form-title').scrollIntoView({ block: 'nearest' });
-  $('damage-type').focus({ preventScroll: true });
+
 }
 
 function hasDraft() {
@@ -388,6 +558,11 @@ function renderQueue() {
   $('queue-count').textContent = queue.length + (queue.length === 1 ? ' report' : ' reports');
   $('empty-queue').hidden = queue.length > 0;
   $('queue-actions').hidden = queue.length === 0;
+  reportPage = Math.max(0, Math.min(reportPage, queue.length - 1));
+  $('queue-pagination').hidden = queue.length < 2;
+  $('report-page').textContent = (reportPage + 1) + ' of ' + queue.length;
+  $('previous-report').disabled = reportPage <= 0;
+  $('next-report').disabled = reportPage >= queue.length - 1;
   $('queue').replaceChildren();
   queuedLayer.clearLayers();
   queue.forEach((report, index) => {
@@ -412,6 +587,7 @@ function renderQueue() {
       }, 'Remove ' + label.toLowerCase()),
     );
     item.append(details, actions);
+    item.hidden = index !== reportPage;
     $('queue').append(item);
     if (report.id === editing) return;
     if (report.mode === 'line') L.polyline(report.points, damageStyle).addTo(queuedLayer);
@@ -420,10 +596,19 @@ function renderQueue() {
   updateControls();
 }
 
+$('previous-report').addEventListener('click', () => {
+  reportPage--;
+  renderQueue();
+});
+$('next-report').addEventListener('click', () => {
+  reportPage++;
+  renderQueue();
+});
+
 function updateControls() {
   const locked = sending || uncertain || preparingPhotos;
   $('report-fields').disabled = locked;
-  $('map-center').disabled = locked;
+  for (const control of document.querySelectorAll('#map-center, #undo, #clear, [data-mode]')) control.disabled = locked;
   $('send').disabled = !intakeReady || !queue.length || sending || preparingPhotos;
   $('send-help').textContent = intakeReady ? 'Keep this tab open until you get a confirmation.' :
     'Online submissions are unavailable.';
@@ -434,7 +619,8 @@ function updateControls() {
 $('send').addEventListener('click', async () => {
   if (!intakeReady || sending || !queue.length) return;
   if (hasDraft()) {
-    message($('send-message'), 'Add or finish editing the current report before sending.', true);
+    message($('form-message'), 'Add or finish editing the current report before sending.', true);
+    setStep('contact', true);
     return;
   }
   sending = true;
