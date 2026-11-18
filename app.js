@@ -2,6 +2,10 @@ import { config } from './config.js';
 import { canSubmit, globalId, sendReports } from './intake.js';
 
 const $ = id => document.getElementById(id);
+const helpDialog = $('report-help');
+$('show-help').addEventListener('click', () => helpDialog.showModal());
+helpDialog.showModal();
+
 const L = window.L;
 const COUNTY = 'https://gis.lpcgov.org/arcgis/rest/services';
 const countyBounds = L.latLngBounds([36.99, -108.25], [37.66, -107.46]);
@@ -153,8 +157,6 @@ expandedMap.addEventListener('close', () => {
   else $('expand-map').focus({ preventScroll: true });
 });
 
-const helpDialog = $('report-help');
-$('show-help').addEventListener('click', () => helpDialog.showModal());
 const queuedLayer = L.layerGroup().addTo(map);
 const activeLayer = L.layerGroup().addTo(map);
 const marker = point => L.circleMarker(point, {

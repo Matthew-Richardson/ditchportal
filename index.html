@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=map-controls">
+  <link rel="stylesheet" href="./styles.css?v=welcome-instructions">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=report-progress"></script>
+  <script type="module" src="./app.js?v=welcome-instructions"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -189,16 +189,26 @@
   </main>
   <dialog id="expanded-map" aria-label="Full-screen damage map"></dialog>
   <dialog id="report-help" aria-labelledby="help-title">
-    <h2 id="help-title">Before you report</h2>
-    <p>Please use this portal to report damage to ditches and irrigation infrastructure to La Plata County OEM. This information is needed to assess the amount and magnitude of damage caused by the flooding event of November 1st.</p>
-    <p>This information will only be used to identify impact areas, so that we can identify potential assistance from local, state and federal sources. <strong>Entering this information does not ensure assistance of any kind</strong>, but will help us identify needs.</p>
-    <p><strong>Not all ditches are recorded with La Plata County.</strong> You can report damage even if the ditch or its name is missing from the map.</p>
-    <ol>
-      <li>Search for a street address or ditch name, or zoom to the location. You can expand the map for more room.</li>
-      <li>Mark a single spot, or trace a damaged stretch from start to end.</li>
-      <li>Follow the steps to describe the damage and give your contact information. Save each location, then send all your reports together.</li>
-    </ol>
-    <form method="dialog"><button class="primary" autofocus>Start reporting</button></form>
+    <h2 id="help-title" tabindex="-1" autofocus>Before you report</h2>
+    <section>
+      <h3>What to report</h3>
+      <p>Tell La Plata County OEM about damage to ditches and irrigation infrastructure from the November 1 flood.</p>
+    </section>
+    <section>
+      <h3>How to report</h3>
+      <ol>
+        <li>Find the damage by address, ditch name, or zooming in.</li>
+        <li>Mark one damaged spot or trace a damaged stretch.</li>
+        <li>Describe the damage and enter your contact information. You can send several locations together.</li>
+      </ol>
+      <p><strong>Some ditches are missing from the county map.</strong> You can still report damage there.</p>
+    </section>
+    <section>
+      <h3>How we use your report</h3>
+      <p>Reports help us assess damage and identify potential local, state, and federal assistance.</p>
+      <p><strong>Submitting a report does not guarantee assistance.</strong></p>
+    </section>
+    <form method="dialog"><button class="primary">Start reporting</button></form>
   </dialog>
 </body>
 </html>
