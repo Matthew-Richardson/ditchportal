@@ -6,9 +6,6 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat+Alternates:wght@700&amp;family=Poppins:wght@400;500;600;700&amp;display=swap">
   <link rel="stylesheet" href="./styles.css">
   <script src="./vendor/leaflet.js" defer></script>
   <script type="module" src="./app.js"></script>
@@ -77,9 +74,9 @@
           <fieldset id="report-fields">
             <legend class="sr-only">Damage report</legend>
             <section class="form-group" data-form-step="damage" aria-labelledby="form-title">
-              <h2 id="form-title" tabindex="-1">Damage details</h2>
-              <label class="field">Ditch name <small>Optional</small>
-                <input id="ditch-name" maxlength="150" placeholder="If known">
+              <h2 id="form-title" tabindex="-1">Damage details <small>Required</small></h2>
+              <label class="field">Ditch name <small>If known</small>
+                <input id="ditch-name" maxlength="150">
               </label>
               <label class="field">Damage type
                 <select id="damage-type" required>
@@ -91,8 +88,8 @@
                   <option value="Other or unknown">Other or unknown</option>
                 </select>
               </label>
-              <label class="field">Describe the damage <small>Optional</small>
-                <textarea id="notes" rows="2" maxlength="1500" placeholder="What happened? Include any nearby landmark that will help staff find it."></textarea>
+              <label class="field">Describe the damage
+                <textarea id="notes" rows="2" maxlength="1500" required placeholder="What happened? Include any nearby landmark that will help staff find it."></textarea>
               </label>
               <label class="field">Photos <small>Optional</small>
                 <span id="photo-help" class="help">Up to 3 photos.</span>
@@ -174,7 +171,7 @@
     <ol>
       <li>Search for a street address or ditch name, or zoom to the location.</li>
       <li>Mark a single spot, or trace a damaged stretch from start to end.</li>
-      <li>Enter your contact information and add any photos. Add the report, then review and send it. You can send several locations together.</li>
+      <li>Describe the damage and enter your contact information. Add the report, then review and send it. You can send several locations together.</li>
     </ol>
     <form method="dialog"><button class="primary" autofocus>Start reporting</button></form>
   </dialog>

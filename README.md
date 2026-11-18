@@ -2,7 +2,7 @@
 
 A mobile-friendly, static GitHub Pages app for residents to report irrigation ditch damage. Residents mark a spot or draw a stretch, attach photos, and review up to 10 reports before sending. The portal calculates the length of a traced stretch in feet. A spot report has no measured length.
 
-The map reads [LPC Irrigation Ditches](https://gis.lpcgov.org/arcgis/rest/services/Operational_Layers/Hydrology/MapServer/5) and [LPC 2025 aerial imagery](https://gis.lpcgov.org/arcgis/rest/services/Orthos/WM2025Orthos2/MapServer). The ditch name and source object ID are suggested from the first marked location. Residents can correct the name or report an unmapped ditch. The ditch layer is reference geometry and stays separate from damage observations.
+The map reads [LPC Irrigation Ditches](https://gis.lpcgov.org/arcgis/rest/services/Operational_Layers/Hydrology/MapServer/5) and [LPC 2025 aerial imagery](https://gis.lpcgov.org/arcgis/rest/services/Orthos/WM2025Orthos2/MapServer). County aerial imagery is the default, with a maximum zoom level of 21. The ditch name and source object ID are suggested from the first marked location. Residents can correct the name or report an unmapped ditch. The ditch layer is reference geometry and stays separate from damage observations.
 
 ## Try the portal
 
@@ -32,7 +32,7 @@ Each report is an editable feature with attributes and attachments. Using a poin
 | `ditch_name` | Text, 150 | Suggested or user-entered ditch name |
 | `ditch_oid` | Long | Optional reference to LPC Irrigation Ditches `OBJECTID_1` |
 | `length_ft` | Double | Estimated polyline length in feet |
-| `damage_notes` | Text, 1500 | Optional resident description |
+| `damage_notes` | Text, 1500 | Required resident description |
 | `ditch_operator` | Text, 200 | Ditch company, district, or operator |
 | `observed_date` | Date | First observed date, stored as noon UTC on the selected day |
 | `damage_cause` | Text, 120 | Suspected cause |

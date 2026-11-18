@@ -7,6 +7,7 @@ const COUNTY = 'https://gis.lpcgov.org/arcgis/rest/services';
 const countyBounds = L.latLngBounds([36.99, -108.25], [37.66, -107.46]);
 const mapColors = getComputedStyle(document.documentElement);
 const damageStyle = { color: mapColors.getPropertyValue('--damage').trim(), weight: 4, opacity: 1, interactive: false };
+const damageOutline = mapColors.getPropertyValue('--damage-outline').trim();
 const maxReports = 10;
 const maxBatchPhotos = 8;
 const maxReportPhotos = 3;
@@ -48,24 +49,26 @@ async function checkIntake() {
 }
 message($('setup-status'), 'Checking whether online submissions are available…');
 
-const map = L.map('map', { minZoom: 8, maxZoom: 20, doubleClickZoom: false, zoomSnap: 0.5 });
+const aerialMaxZoom = 21;
+const topoMaxZoom = 19;
+const map = L.map('map', { minZoom: 8, maxZoom: aerialMaxZoom, doubleClickZoom: false, zoomSnap: 0.5 });
 const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-  maxNativeZoom: 19, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
+  maxNativeZoom: topoMaxZoom, maxZoom: aerialMaxZoom, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
 }).addTo(map);
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
-  bounds: countyBounds, minNativeZoom: 11, attribution: 'La Plata County GIS, 2025 aerial imagery',
+  bounds: countyBounds, minNativeZoom: 11, maxZoom: aerialMaxZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
 });
 aerial.on('tileerror', () => {
   message($('layer-status'), 'The topographic map fills gaps in aerial imagery.');
 });
-$('basemap').addEventListener('change', () => {
-  if ($('basemap').value === 'aerial') {
-    map.addLayer(aerial);
-  } else {
-    map.removeLayer(aerial);
-  }
-});
-if ($('basemap').value === 'aerial') map.addLayer(aerial);
+function updateBasemap() {
+  const useAerial = $('basemap').value === 'aerial';
+  if (useAerial) map.addLayer(aerial);
+  else map.removeLayer(aerial);
+  map.setMaxZoom(useAerial ? aerialMaxZoom : topoMaxZoom);
+}
+$('basemap').addEventListener('change', updateBasemap);
+updateBasemap();
 const countyView = () => map.fitBounds(countyBounds, { padding: [10, 10], animate: false });
 countyView();
 $('county-view').addEventListener('click', countyView);
@@ -102,9 +105,14 @@ try {
 }
 const queuedLayer = L.layerGroup().addTo(map);
 const activeLayer = L.layerGroup().addTo(map);
-const marker = (point, style = damageStyle) => L.circleMarker(point, {
-  ...style, radius: 7, color: '#fff', fillColor: style.color, fillOpacity: 1, weight: 2,
+const marker = point => L.circleMarker(point, {
+  ...damageStyle, radius: 7, color: damageOutline, fillColor: damageStyle.color, fillOpacity: 1, weight: 2,
 });
+
+function drawDamageLine(points, layer) {
+  L.polyline(points, { ...damageStyle, color: damageOutline, weight: 8 }).addTo(layer);
+  L.polyline(points, damageStyle).addTo(layer);
+}
 
 async function loadDitches() {
   const params = new URLSearchParams({
@@ -326,7 +334,7 @@ function renderDrawing() {
     message($('location-status'));
     return;
   }
-  if (points.length > 1) L.polyline(points, damageStyle).addTo(activeLayer);
+  if (points.length > 1) drawDamageLine(points, activeLayer);
   for (const point of points) marker(point).addTo(activeLayer);
   const [lat, lng] = points[0];
   const label = mode === 'point' ? lat.toFixed(5) + ', ' + lng.toFixed(5) :
@@ -454,8 +462,7 @@ function resetForm() {
   draftDitch = null;
   photos = [];
   $('damage-form').reset();
-  $('contact_name').setCustomValidity('');
-  $('contact_phone').setCustomValidity('');
+  for (const field of ['notes', 'contact_name', 'contact_phone']) $(field).setCustomValidity('');
   $('add-report').textContent = 'Add damage report';
   $('cancel-edit').hidden = true;
   renderDrawing();
@@ -506,9 +513,11 @@ $('damage-form').addEventListener('submit', event => {
 });
 
 function validateReportFields() {
+  const notes = $('notes');
   const name = $('contact_name');
   const phone = $('contact_phone');
   const email = $('contact_email');
+  notes.setCustomValidity(notes.value.trim() ? '' : 'Describe the damage.');
   name.setCustomValidity(name.value.trim() ? '' : 'Enter your name.');
   phone.setCustomValidity(phone.value.trim()
     ? (phone.value.replace(/\D/g, '').length >= 7 ? '' : 'Enter a phone number with at least 7 digits.')
@@ -519,7 +528,9 @@ function validateReportFields() {
   invalid.reportValidity();
   return false;
 }
-$('contact_name').addEventListener('input', () => $('contact_name').setCustomValidity(''));
+for (const field of ['notes', 'contact_name']) {
+  $(field).addEventListener('input', () => $(field).setCustomValidity(''));
+}
 for (const field of ['contact_phone', 'contact_email']) {
   $(field).addEventListener('input', () => $('contact_phone').setCustomValidity(''));
 }
@@ -590,7 +601,7 @@ function renderQueue() {
     item.hidden = index !== reportPage;
     $('queue').append(item);
     if (report.id === editing) return;
-    if (report.mode === 'line') L.polyline(report.points, damageStyle).addTo(queuedLayer);
+    if (report.mode === 'line') drawDamageLine(report.points, queuedLayer);
     marker(report.points[0]).addTo(queuedLayer);
   });
   updateControls();
