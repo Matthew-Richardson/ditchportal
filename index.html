@@ -6,7 +6,7 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=report-progress">
+  <link rel="stylesheet" href="./styles.css?v=map-controls">
   <script src="./vendor/leaflet.js" defer></script>
   <script type="module" src="./app.js?v=report-progress"></script>
 </head>
@@ -40,12 +40,20 @@
           <div class="map-controls">
             <button type="button" id="county-view" class="subtle">County view</button>
             <label class="sr-only" for="basemap">Basemap</label>
-            <select id="basemap"><option value="aerial" selected>County aerial</option><option value="topo">Topographic</option></select>
+            <select id="basemap" class="subtle"><option value="aerial" selected>County aerial</option><option value="topo">Topographic</option></select>
             <button type="button" class="subtle" id="expand-map" aria-haspopup="dialog">Expand map</button>
             <button type="button" class="subtle expanded-only" id="close-expanded-map">Exit full screen</button>
           </div>
         </div>
-        <p class="step-instructions map-instructions">Search by address or ditch name, or use the map to find the damage. Follow the marking instructions below.</p>
+        <div class="map-drawing">
+          <p id="map-instruction">Zoom in, then tap or click the damaged spot.</p>
+          <p class="map-search-tip">Search by address or ditch name to find the area.</p>
+          <p id="location-status" role="status" hidden></p>
+          <div id="draw-actions" class="draw-actions" hidden>
+            <button type="button" id="undo" class="subtle">Undo last point</button>
+            <button type="button" id="clear" class="subtle">Clear location</button>
+          </div>
+        </div>
         <form class="map-search" id="map-search" role="search">
           <label class="sr-only" for="search-input">Search map by street address or ditch name</label>
           <input id="search-input" type="search" maxlength="100" placeholder="Street address or ditch name" autocomplete="off" aria-describedby="search-status">
@@ -55,17 +63,7 @@
             <ul id="search-results" aria-label="Map search results" hidden></ul>
           </div>
         </form>
-        <div class="map-drawing">
-          <div class="location">
-            <p id="map-instruction">Zoom in, then select the damaged spot on the map.</p>
-            <p id="location-status" role="status" hidden></p>
-            <div id="draw-actions" class="draw-actions" hidden>
-              <button type="button" id="undo" class="subtle">Undo last point</button>
-              <button type="button" id="clear" class="subtle">Clear location</button>
-            </div>
-          </div>
-        </div>
-        <div id="map" role="region" aria-label="Damage map. Use plus and minus to zoom, arrow keys to pan, and the Use map center button to place a location."></div>
+        <div id="map" role="region" aria-describedby="map-instruction" aria-label="Damage map. Use plus and minus to zoom, arrow keys to pan, and the Use map center button to place a location."></div>
         <div class="map-footer">
           <div class="legend"><span><i class="ditch-swatch"></i>Mapped ditch</span><span><i class="damage-swatch"></i>Marked damage</span></div>
           <div class="map-footer-actions">
@@ -184,7 +182,10 @@
         <p id="send-message" class="form-message" role="status" hidden></p>
       </section>
     </div>
-    <footer>For emergencies, call 911.</footer>
+    <footer>
+      <p>Questions? Email <a href="mailto:oemecc@lpcgov.org">oemecc@lpcgov.org</a>.</p>
+      <p>For emergencies, call 911.</p>
+    </footer>
   </main>
   <dialog id="expanded-map" aria-label="Full-screen damage map"></dialog>
   <dialog id="report-help" aria-labelledby="help-title">
