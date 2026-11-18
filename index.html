@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
+  <title>Ditch Damage Reporting | La Plata County</title>
+  <link rel="stylesheet" href="./vendor/leaflet.css">
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./vendor/leaflet.js" defer></script>
+  <script type="module" src="./app.js"></script>
+</head>
+<body>
+  <header class="county-bar">
+    <div class="page-width"><span class="county-mark" aria-hidden="true">LP</span><span>La Plata County</span><span class="state">Colorado</span></div>
+  </header>
+  <main class="page-width">
+    <div class="intro">
+      <h1>Report ditch damage</h1>
+      <p>Mark damaged irrigation ditches on the map and add photos for county staff. You can send multiple locations together.</p>
+    </div>
+    <p id="setup-status" class="banner" role="status" hidden></p>
+    <div class="layout">
+      <section class="panel map-panel" aria-labelledby="map-title">
+        <div class="panel-head">
+          <h2 id="map-title">Damage map</h2>
+          <div class="map-controls">
+            <button type="button" id="county-view" class="subtle">County view</button>
+            <label class="sr-only" for="basemap">Basemap</label>
+            <select id="basemap"><option value="topo">Topographic</option><option value="aerial">2025 aerial</option></select>
+          </div>
+        </div>
+        <div id="map" role="region" aria-label="Damage map. Use plus and minus to zoom, arrow keys to pan, and the Use map center button to place a location."></div>
+        <div class="map-footer">
+          <div class="legend"><span><i class="ditch-swatch"></i>Mapped ditch</span><span><i class="damage-swatch"></i>Marked damage</span></div>
+          <button type="button" id="map-center" class="subtle">Use map center</button>
+        </div>
+        <p id="layer-status" class="map-status" role="status"></p>
+      </section>
+      <section class="panel form-panel" aria-labelledby="form-title">
+        <h2 id="form-title">Damage details</h2>
+        <form id="damage-form">
+          <fieldset id="report-fields">
+            <legend class="sr-only">Damage report</legend>
+            <div class="field">
+              <span id="geometry-label" class="label">How much of the ditch is damaged?</span>
+              <div class="modes" role="group" aria-labelledby="geometry-label">
+                <button type="button" data-mode="point" aria-pressed="true">Single spot</button>
+                <button type="button" data-mode="line" aria-pressed="false">Damaged stretch</button>
+              </div>
+              <div class="location">
+                <p id="map-instruction">Zoom in, then select the damaged spot on the map.</p>
+                <p id="location-status" role="status" hidden></p>
+                <div id="draw-actions" class="draw-actions" hidden>
+                  <button type="button" id="undo" class="subtle">Undo last point</button>
+                  <button type="button" id="clear" class="subtle">Clear location</button>
+                </div>
+              </div>
+            </div>
+            <label class="field">Ditch name <small>Optional</small>
+              <input id="ditch-name" maxlength="150" placeholder="If known">
+            </label>
+            <label class="field">Damage type
+              <select id="damage-type" required>
+                <option value="">Select damage type</option>
+                <option value="Breached bank">Breached bank</option>
+                <option value="Erosion or bank collapse">Erosion or bank collapse</option>
+                <option value="Debris or sediment blockage">Debris or sediment blockage</option>
+                <option value="Damaged headgate or structure">Damaged headgate or structure</option>
+                <option value="Other or unknown">Other or unknown</option>
+              </select>
+            </label>
+            <label class="field">Describe the damage <small>Optional</small>
+              <textarea id="notes" rows="3" maxlength="1500" placeholder="What happened? Include any nearby landmark that will help staff find it."></textarea>
+            </label>
+            <label class="field">Photos <small>Optional</small>
+              <span id="photo-help" class="help">Up to 3 photos per location. JPEG, PNG, WebP or HEIC where supported.</span>
+              <input id="photos" type="file" multiple accept=".jpg,.jpeg,.png,.webp,.heic,.heif,image/jpeg,image/png,image/webp,image/heic,image/heif" aria-describedby="photo-help">
+            </label>
+            <ul id="photo-list" class="photo-list" aria-label="Selected photos" hidden></ul>
+            <details class="extra-fields">
+              <summary>More damage details <small>Optional</small></summary>
+              <label class="field">Ditch company or operator
+                <input id="ditch_operator" maxlength="200">
+              </label>
+              <label class="field">Date you first noticed the damage
+                <input id="observed_date" type="date">
+              </label>
+              <label class="field">Suspected cause
+                <input id="damage_cause" maxlength="120" placeholder="For example, flooding or a landslide">
+              </label>
+              <label class="field">Water delivery
+                <select id="delivery_status"><option value="">Select status</option><option>Unchanged</option><option>Reduced</option><option>Stopped</option><option>Unknown</option></select>
+              </label>
+              <label class="field">What is still at risk?
+                <textarea id="threat_notes" rows="2" maxlength="1500" placeholder="For example, a home, road or utility"></textarea>
+              </label>
+              <label class="field">Estimated irrigated acres affected
+                <input id="acres_affected" type="number" min="0" step="any" inputmode="decimal">
+              </label>
+              <label class="field">Repair status
+                <select id="repair_status"><option value="">Select status</option><option>Not started</option><option>Temporary repairs made</option><option>Repairs underway</option><option>Repairs complete</option><option>Unknown</option></select>
+              </label>
+            </details>
+            <details class="extra-fields">
+              <summary>Contact information <small>Optional</small></summary>
+              <p class="help contact-help">Leave your contact information if county staff may follow up about this report.</p>
+              <label class="field">Name <input id="contact_name" maxlength="150" autocomplete="name"></label>
+              <label class="field">Phone <input id="contact_phone" type="tel" maxlength="50" autocomplete="tel"></label>
+              <label class="field">Email <input id="contact_email" type="email" maxlength="254" autocomplete="email"></label>
+            </details>
+            <p id="form-message" class="form-message" role="status" hidden></p>
+            <div class="add-actions">
+              <button type="submit" class="outline" id="add-report">Add damage report</button>
+              <button type="button" id="cancel-edit" class="subtle" hidden>Cancel edit</button>
+            </div>
+          </fieldset>
+        </form>
+      </section>
+      <section class="panel queue-panel" aria-labelledby="queue-title">
+        <div class="queue-head"><h2 id="queue-title">Reports to send</h2><span id="queue-count" aria-live="polite">0 reports</span></div>
+        <p id="empty-queue" class="help">Add a damage report to review it here before sending.</p>
+        <ol id="queue" class="queue"></ol>
+        <div id="queue-actions" class="queue-actions" hidden>
+          <button type="button" class="primary" id="send">Send reports</button>
+          <p class="help" id="send-help">Keep this tab open until you get a confirmation.</p>
+        </div>
+        <p id="send-message" class="form-message" role="status" hidden></p>
+      </section>
+    </div>
+    <footer>For an immediate threat to life or safety, call 911.</footer>
+  </main>
+</body>
+</html>
