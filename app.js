@@ -93,6 +93,36 @@ new ResizeObserver(() => {
   if ($('map').clientWidth) map.invalidateSize({ pan: false });
 }).observe($('map'));
 
+const expandedMap = $('expanded-map');
+const mapPanel = $('map-panel');
+
+function resizeMap() {
+  if ($('map').clientWidth) map.invalidateSize({ animate: false });
+}
+
+$('expand-map').addEventListener('click', () => {
+  expandedMap.returnValue = '';
+  expandedMap.append(mapPanel);
+  expandedMap.showModal();
+  resizeMap();
+  $('close-expanded-map').focus();
+});
+$('close-expanded-map').addEventListener('click', () => expandedMap.close('back'));
+$('finish-marking').addEventListener('click', () => {
+  const error = locationError();
+  if (error) {
+    message($('location-status'), error, true);
+    return;
+  }
+  expandedMap.close('done');
+});
+expandedMap.addEventListener('close', () => {
+  $('map-home').after(mapPanel);
+  resizeMap();
+  if (expandedMap.returnValue === 'done') setStep('damage', true);
+  else $('expand-map').focus({ preventScroll: true });
+});
+
 const helpDialog = $('report-help');
 $('show-help').addEventListener('click', () => helpDialog.showModal());
 try {
@@ -214,7 +244,8 @@ function closeSearch() {
 }
 $('search-input').addEventListener('input', closeSearch);
 $('map-search').addEventListener('keydown', event => {
-  if (event.key === 'Escape') {
+  if (event.key === 'Escape' && !$('search-response').hidden) {
+    event.preventDefault();
     closeSearch();
     $('search-input').focus();
   }
@@ -476,13 +507,18 @@ $('cancel-edit').addEventListener('click', () => {
   setStep('review', true);
 });
 
+function locationError() {
+  if (mode === 'point') return points.length ? '' : 'Mark the damage location on the map.';
+  return points.length < 2 || lengthFeet(points) < 1 ? 'Mark at least two distinct points for the damaged stretch.' : '';
+}
+
 $('damage-form').addEventListener('submit', event => {
   event.preventDefault();
   if (sending || uncertain || preparingPhotos) return;
-  if (!points.length || (mode === 'line' && (points.length < 2 || lengthFeet(points) < 1))) {
+  const error = locationError();
+  if (error) {
     setStep('map', true);
-    message($('location-status'), mode === 'point' ? 'Mark the damage location on the map.' :
-      'Mark at least two distinct points for the damaged stretch.', true);
+    message($('location-status'), error, true);
     return;
   }
   if (!validateReportFields()) return;
@@ -620,12 +656,15 @@ function updateControls() {
   const locked = sending || uncertain || preparingPhotos;
   $('report-fields').disabled = locked;
   for (const control of document.querySelectorAll('#map-center, #undo, #clear, [data-mode]')) control.disabled = locked;
+  $('add-another').disabled = locked || Boolean(editing);
   $('send').disabled = !intakeReady || !queue.length || sending || preparingPhotos;
   $('send-help').textContent = intakeReady ? 'Keep this tab open until you get a confirmation.' :
     'Online submissions are unavailable.';
   $('send').textContent = sending ? 'Sending…' : uncertain ? 'Retry same batch' : 'Send reports';
   for (const button of $('queue').querySelectorAll('button')) button.disabled = locked || Boolean(editing);
 }
+
+$('add-another').addEventListener('click', () => setStep('map', true));
 
 $('send').addEventListener('click', async () => {
   if (!intakeReady || sending || !queue.length) return;

@@ -2,7 +2,7 @@
 
 A mobile-friendly, static GitHub Pages app for residents to report irrigation ditch damage. Residents mark a spot or draw a stretch, attach photos, and review up to 10 reports before sending. The portal calculates the length of a traced stretch in feet. A spot report has no measured length.
 
-The map reads [LPC Irrigation Ditches](https://gis.lpcgov.org/arcgis/rest/services/Operational_Layers/Hydrology/MapServer/5) and [LPC 2025 aerial imagery](https://gis.lpcgov.org/arcgis/rest/services/Orthos/WM2025Orthos2/MapServer). County aerial imagery is the default, with a maximum zoom level of 21. The ditch name and source object ID are suggested from the first marked location. Residents can correct the name or report an unmapped ditch. The ditch layer is reference geometry and stays separate from damage observations.
+The map reads [LPC Irrigation Ditches](https://gis.lpcgov.org/arcgis/rest/services/Operational_Layers/Hydrology/MapServer/5) and [LPC 2025 aerial imagery](https://gis.lpcgov.org/arcgis/rest/services/Orthos/WM2025Orthos2/MapServer). County aerial imagery is the default, with a maximum zoom level of 21. Residents can use the inline map or choose **Expand map** and **Done marking** to continue the same report. The ditch name and source object ID are suggested from the first marked location. Residents can correct the name or report an unmapped ditch. The ditch layer is reference geometry and stays separate from damage observations.
 
 ## Try the portal
 

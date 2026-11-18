@@ -28,13 +28,16 @@
       <button type="button" data-step="review">Review</button>
     </nav>
     <div class="layout" id="layout" data-active-step="map">
-      <section class="panel map-panel" aria-labelledby="map-title">
+      <div id="map-home" hidden></div>
+      <section class="panel map-panel" id="map-panel" aria-labelledby="map-title">
         <div class="panel-head">
           <h2 id="map-title" tabindex="-1">Damage map</h2>
           <div class="map-controls">
             <button type="button" id="county-view" class="subtle">County view</button>
             <label class="sr-only" for="basemap">Basemap</label>
             <select id="basemap"><option value="aerial" selected>County aerial</option><option value="topo">Topographic</option></select>
+            <button type="button" class="subtle" id="expand-map" aria-haspopup="dialog">Expand map</button>
+            <button type="button" class="subtle expanded-only" id="close-expanded-map">Exit full screen</button>
           </div>
         </div>
         <form class="map-search" id="map-search" role="search">
@@ -64,7 +67,10 @@
         <div id="map" role="region" aria-label="Damage map. Use plus and minus to zoom, arrow keys to pan, and the Use map center button to place a location."></div>
         <div class="map-footer">
           <div class="legend"><span><i class="ditch-swatch"></i>Mapped ditch</span><span><i class="damage-swatch"></i>Marked damage</span></div>
-          <button type="button" id="map-center" class="subtle">Use map center</button>
+          <div class="map-footer-actions">
+            <button type="button" id="map-center" class="subtle">Use map center</button>
+            <button type="button" class="primary expanded-only" id="finish-marking">Done marking</button>
+          </div>
         </div>
         <p id="layer-status" class="sr-only" role="status"></p>
         <div class="step-actions"><button type="button" class="primary" data-go="damage">Next: Damage</button></div>
@@ -156,6 +162,7 @@
           <button type="button" class="subtle" id="next-report">Next</button>
         </div>
         <div id="queue-actions" class="queue-actions" hidden>
+          <button type="button" class="outline" id="add-another">Add another location</button>
           <button type="button" class="primary" id="send">Send reports</button>
           <p class="help" id="send-help">Keep this tab open until you get a confirmation.</p>
         </div>
@@ -165,11 +172,12 @@
     </div>
     <footer>For emergencies, call 911.</footer>
   </main>
+  <dialog id="expanded-map" aria-label="Full-screen damage map"></dialog>
   <dialog id="report-help" aria-labelledby="help-title">
     <h2 id="help-title">Before you report</h2>
     <p><strong>Not all ditches are recorded with La Plata County.</strong> You can report damage even if the ditch or its name is missing from the map.</p>
     <ol>
-      <li>Search for a street address or ditch name, or zoom to the location.</li>
+      <li>Search for a street address or ditch name, or zoom to the location. You can expand the map for more room.</li>
       <li>Mark a single spot, or trace a damaged stretch from start to end.</li>
       <li>Describe the damage and enter your contact information. Add the report, then review and send it. You can send several locations together.</li>
     </ol>
