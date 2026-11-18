@@ -17,7 +17,7 @@ const optionalFields = [
 ];
 const queue = [];
 let reportPage = 0;
-const stepButtons = [...document.querySelectorAll('[data-step]')];
+const reportSteps = ['map', 'damage', 'impact', 'contact'];
 const stepHeadings = { map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
 let batchId = globalId();
 let mode = 'point';
@@ -79,15 +79,26 @@ const ditchLabels = L.layerGroup().addTo(map);
 
 function setStep(step, focusHeading = false) {
   $('layout').dataset.activeStep = step;
-  for (const button of stepButtons) {
-    if (button.dataset.step === step) button.setAttribute('aria-current', 'step');
-    else button.removeAttribute('aria-current');
-  }
+  const location = editing ? queue.findIndex(report => report.id === editing) + 1 : queue.length + 1;
+  $('step-progress').textContent = step === 'review' ? 'Saved locations' :
+    (editing ? 'Editing location ' : 'Location ') + location + ' · Step ' + (reportSteps.indexOf(step) + 1) + ' of ' + reportSteps.length;
   if (step === 'map') map.invalidateSize({ pan: false });
   if (focusHeading) $(stepHeadings[step]).focus({ preventScroll: true });
 }
-for (const button of document.querySelectorAll('[data-step], [data-go]')) {
-  button.addEventListener('click', () => setStep(button.dataset.step || button.dataset.go, true));
+for (const button of document.querySelectorAll('[data-go]')) {
+  button.addEventListener('click', () => {
+    if (button.dataset.check === 'map') {
+      const error = locationError();
+      if (error) {
+        message($('location-status'), error, true);
+        return;
+      }
+    } else if (button.dataset.check && !validateReportFields(button.dataset.check)) {
+      return;
+    }
+    message($('form-message'));
+    setStep(button.dataset.go, true);
+  });
 }
 new ResizeObserver(() => {
   if ($('map').clientWidth) map.invalidateSize({ pan: false });
@@ -356,8 +367,8 @@ function renderDrawing() {
   $('draw-actions').hidden = points.length === 0;
   $('undo').hidden = mode !== 'line';
   $('map-instruction').textContent = mode === 'point'
-    ? 'Zoom in, then select the damaged spot on the map.'
-    : 'Select the start, follow any bends, then select the end of the damaged stretch.';
+    ? 'Zoom in, then tap or click the damaged spot.'
+    : 'Tap or click the start, each bend, and the end of the damaged stretch.';
   for (const button of document.querySelectorAll('[data-mode]')) {
     button.setAttribute('aria-pressed', String(button.dataset.mode === mode));
   }
@@ -489,12 +500,13 @@ $('photos').addEventListener('change', async event => {
 
 function resetForm() {
   editing = null;
+  mode = 'point';
   points = [];
   draftDitch = null;
   photos = [];
   $('damage-form').reset();
   for (const field of ['notes', 'contact_name', 'contact_phone']) $(field).setCustomValidity('');
-  $('add-report').textContent = 'Add damage report';
+  $('add-report').textContent = 'Save this location';
   $('cancel-edit').hidden = true;
   renderDrawing();
   renderPhotos();
@@ -548,7 +560,7 @@ $('damage-form').addEventListener('submit', event => {
   setStep('review', true);
 });
 
-function validateReportFields() {
+function validateReportFields(step) {
   const notes = $('notes');
   const name = $('contact_name');
   const phone = $('contact_phone');
@@ -558,7 +570,8 @@ function validateReportFields() {
   phone.setCustomValidity(phone.value.trim()
     ? (phone.value.replace(/\D/g, '').length >= 7 ? '' : 'Enter a phone number with at least 7 digits.')
     : (email.value.trim() ? '' : 'Enter a phone number or email address.'));
-  const invalid = [...$('damage-form').querySelectorAll('input, select, textarea')].find(field => !field.validity.valid);
+  const group = step ? document.querySelector('.form-group[data-form-step="' + step + '"]') : $('damage-form');
+  const invalid = [...group.querySelectorAll('input, select, textarea')].find(field => !field.validity.valid);
   if (!invalid) return true;
   setStep(invalid.closest('[data-form-step]').dataset.formStep);
   invalid.reportValidity();
@@ -605,6 +618,7 @@ function renderQueue() {
   $('queue-count').textContent = queue.length + (queue.length === 1 ? ' report' : ' reports');
   $('empty-queue').hidden = queue.length > 0;
   $('queue-actions').hidden = queue.length === 0;
+  $('review-saved').hidden = queue.length === 0;
   reportPage = Math.max(0, Math.min(reportPage, queue.length - 1));
   $('queue-pagination').hidden = queue.length < 2;
   $('report-page').textContent = (reportPage + 1) + ' of ' + queue.length;
@@ -622,7 +636,7 @@ function renderQueue() {
     title.textContent = label + ' · ' + report.type;
     summary.className = 'help';
     summary.textContent = [
-      report.name, report.mode === 'point' ? 'Single spot' : report.feet.toLocaleString() + ' ft',
+      report.name, report.mode === 'point' ? 'One damaged spot' : report.feet.toLocaleString() + ' ft',
       report.photos.length + (report.photos.length === 1 ? ' photo' : ' photos'),
     ].filter(Boolean).join(' · ');
     details.append(title, summary);
@@ -658,13 +672,20 @@ function updateControls() {
   for (const control of document.querySelectorAll('#map-center, #undo, #clear, [data-mode]')) control.disabled = locked;
   $('add-another').disabled = locked || Boolean(editing);
   $('send').disabled = !intakeReady || !queue.length || sending || preparingPhotos;
-  $('send-help').textContent = intakeReady ? 'Keep this tab open until you get a confirmation.' :
+  $('send-help').textContent = intakeReady ? 'Saved reports stay in this tab until you send them.' :
     'Online submissions are unavailable.';
   $('send').textContent = sending ? 'Sending…' : uncertain ? 'Retry same batch' : 'Send reports';
   for (const button of $('queue').querySelectorAll('button')) button.disabled = locked || Boolean(editing);
 }
 
 $('add-another').addEventListener('click', () => setStep('map', true));
+$('review-saved').addEventListener('click', () => {
+  if (hasDraft()) {
+    message($('location-status'), 'Finish this location before reviewing your saved reports.', true);
+    return;
+  }
+  setStep('review', true);
+});
 
 $('send').addEventListener('click', async () => {
   if (!intakeReady || sending || !queue.length) return;

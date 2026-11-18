@@ -4,6 +4,8 @@ A mobile-friendly, static GitHub Pages app for residents to report irrigation di
 
 The map reads [LPC Irrigation Ditches](https://gis.lpcgov.org/arcgis/rest/services/Operational_Layers/Hydrology/MapServer/5) and [LPC 2025 aerial imagery](https://gis.lpcgov.org/arcgis/rest/services/Orthos/WM2025Orthos2/MapServer). County aerial imagery is the default, with a maximum zoom level of 21. Residents can use the inline map or choose **Expand map** and **Done marking** to continue the same report. The ditch name and source object ID are suggested from the first marked location. Residents can correct the name or report an unmapped ditch. The ditch layer is reference geometry and stays separate from damage observations.
 
+Each location has four steps: mark it on the map, describe the damage, add any impact or repair details, and enter contact information. Save the location to review it, then add another location or send the saved reports.
+
 ## Try the portal
 
 Run `python -m http.server 8000` from this folder and open `http://localhost:8000/`. The portal checks both public intake views before enabling sending. Drafts are held in the current tab. Photos are resized to JPEG and their original filenames and metadata are omitted from the upload.
