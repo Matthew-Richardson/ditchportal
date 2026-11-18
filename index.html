@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="./vendor/leaflet.css">
   <link rel="stylesheet" href="./styles.css?v=reference-layers">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=reference-layers"></script>
+  <script type="module" src="./app.js?v=reference-layers-on"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -44,8 +44,8 @@
             <details class="map-layers">
               <summary class="subtle">Map layers</summary>
               <div class="map-layer-options">
-                <label><input type="checkbox" id="show-roads" autocomplete="off"> Roads</label>
-                <label><input type="checkbox" id="show-addresses" autocomplete="off"> Address points</label>
+                <label><input type="checkbox" id="show-roads" autocomplete="off" checked> Roads</label>
+                <label><input type="checkbox" id="show-addresses" autocomplete="off" checked> Address points</label>
                 <p class="help">Zoom in to see address points.</p>
                 <p id="reference-layer-status" class="help" role="status" hidden></p>
               </div>

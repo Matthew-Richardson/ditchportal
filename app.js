@@ -110,10 +110,10 @@ function loadVectorSupport() {
   return vectorSupport;
 }
 
-for (const [inputId, service, name, zIndex] of [
+const referenceLayerUpdates = [
   ['show-roads', 'Roads', 'Roads', 350],
   ['show-addresses', 'AddressPoints', 'Address points', 360],
-]) {
+].map(([inputId, service, name, zIndex]) => {
   const input = $(inputId);
   const status = $('reference-layer-status');
   const pane = map.createPane(service);
@@ -122,7 +122,7 @@ for (const [inputId, service, name, zIndex] of [
   let loading;
   let layer;
 
-  input.addEventListener('change', async () => {
+  async function updateLayer() {
     message(status);
     if (!input.checked) {
       if (layer) map.removeLayer(layer);
@@ -144,8 +144,11 @@ for (const [inputId, service, name, zIndex] of [
       input.checked = false;
       message(status, error instanceof Error ? error.message : name + ' could not load.');
     }
-  });
-}
+  }
+
+  input.addEventListener('change', updateLayer);
+  return updateLayer;
+});
 
 map.createPane('ditches').style.zIndex = 390;
 const ditchLabels = L.layerGroup().addTo(map);
@@ -173,6 +176,7 @@ function setStep(step, focusHeading = false) {
     if (!mapOpened) {
       countyView();
       mapOpened = true;
+      for (const updateLayer of referenceLayerUpdates) updateLayer();
     }
   }
 }
