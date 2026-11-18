@@ -5,7 +5,8 @@ const $ = id => document.getElementById(id);
 const L = window.L;
 const COUNTY = 'https://gis.lpcgov.org/arcgis/rest/services';
 const countyBounds = L.latLngBounds([36.99, -108.25], [37.66, -107.46]);
-const damageStyle = { color: '#bb471b', weight: 4, opacity: 1, interactive: false };
+const mapColors = getComputedStyle(document.documentElement);
+const damageStyle = { color: mapColors.getPropertyValue('--damage').trim(), weight: 4, opacity: 1, interactive: false };
 const maxReports = 10;
 const maxBatchPhotos = 8;
 const maxReportPhotos = 3;
@@ -94,7 +95,7 @@ async function loadDitches() {
       };
       return paths.map(path => ({ path: path.map(([lng, lat]) => L.latLng(lat, lng)), ditch }));
     });
-    L.geoJSON(data, { pane: 'ditches', interactive: false, style: { color: '#007caa', weight: 2.8, opacity: .93 },
+    L.geoJSON(data, { pane: 'ditches', interactive: false, style: { color: mapColors.getPropertyValue('--ditch').trim(), weight: 2.8, opacity: .93 },
       attribution: 'La Plata County GIS, Irrigation Ditches',
     }).addTo(map);
   } catch {
@@ -153,7 +154,7 @@ function place(location) {
 map.on('click', event => place(event.latlng));
 $('map-center').addEventListener('click', () => place(map.getCenter()));
 const centerMark = L.circleMarker(map.getCenter(), {
-  radius: 5, color: '#133b3a', weight: 2, fillColor: 'white', fillOpacity: 1, interactive: false,
+  radius: 5, color: mapColors.getPropertyValue('--field-dark').trim(), weight: 2, fillColor: 'white', fillOpacity: 1, interactive: false,
 });
 $('map-center').addEventListener('focus', () => centerMark.setLatLng(map.getCenter()).addTo(map));
 $('map-center').addEventListener('blur', () => centerMark.remove());
