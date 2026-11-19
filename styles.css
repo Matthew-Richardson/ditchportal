@@ -49,12 +49,13 @@ h1 {
 h2 { font: 700 1.3rem / 1.2 Arial, Helvetica, sans-serif; }
 h2 small { color: var(--muted); font: 500 .72rem / 1.2 Arial, Helvetica, sans-serif; margin-left: .25rem; }
 .panel-head, .map-footer, .queue-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; }
-.panel-head { min-height: 3rem; padding: .45rem .75rem; flex-wrap: wrap; }
+.panel-head { min-height: 3rem; padding: .35rem .75rem; }
 .map-panel .panel-head { border-bottom: 1px solid var(--rule); margin-bottom: .35rem; }
 .map-controls, .map-footer-actions, .legend, .draw-actions, .add-actions, .queue-actions { display: flex; align-items: center; flex-wrap: wrap; gap: .5rem; }
 #map { width: 100%; height: auto; min-height: 145px; flex: 1 1 0; background: #e1e9de; }
 #map.drawing { cursor: crosshair; }
 .map-footer { flex-wrap: wrap; border-top: 1px solid var(--rule); padding: .35rem .75rem; }
+.map-footer-actions { margin-left: auto; justify-content: flex-end; }
 .legend { color: var(--muted); font-size: .875rem; gap: .9rem; }
 .legend span { display: flex; align-items: center; gap: .35rem; }
 .legend i { width: 1.15rem; border-top: 3px solid var(--ditch); border-radius: 2px; }
@@ -81,24 +82,36 @@ input, select, textarea { padding: .48rem .55rem; font-weight: 400; }
 textarea { resize: vertical; min-height: 2.75rem; }
 input[type="file"] { padding: .22rem; font-size: .8rem; }
 input::file-selector-button { font: inherit; color: var(--field-green); background: var(--field-light); border: 0; border-radius: .3rem; padding: .38rem .55rem; margin-right: .5rem; cursor: pointer; }
-button, .map-controls select, .map-layers summary { padding: .3rem .6rem; min-height: 2.65rem; font-size: .95rem; font-weight: 650; }
+button, .map-controls select, .map-options summary { padding: .3rem .6rem; min-height: 2.65rem; font-size: .95rem; font-weight: 650; }
 button:hover:enabled { background: var(--field-light); }
 .subtle { color: var(--field-green); }
-.map-controls select:hover:enabled, .map-layers summary:hover { background: var(--field-light); }
-.map-layers { position: relative; }
-.map-layers[open] { z-index: 1101; }
-.map-layers summary { cursor: pointer; align-content: center; border: 1px solid #aebdab; border-radius: .4rem; }
-.map-layer-options { position: absolute; right: 0; top: calc(100% + .25rem); width: max-content; max-width: 13rem; padding: .35rem .65rem; border: 1px solid #aebdab; border-radius: .4rem; background: white; box-shadow: 0 4px 12px #24362730; }
-.map-layer-options label { display: flex; align-items: center; gap: .45rem; min-height: 2.5rem; cursor: pointer; }
+.map-controls select:hover:enabled, .map-options summary:hover { background: var(--field-light); }
+.map-options { position: relative; }
+.map-options[open] { z-index: 1101; }
+.map-options summary { cursor: pointer; align-content: center; white-space: nowrap; border-radius: .4rem; }
+.map-options-menu {
+  position: absolute;
+  inset: calc(100% + .25rem) 0 auto auto;
+  display: grid;
+  gap: .4rem;
+  width: 13rem;
+  max-height: min(24rem, 68dvh);
+  overflow: auto;
+  padding: .6rem;
+  border: 1px solid #aebdab;
+  border-radius: .4rem;
+  background: white;
+  box-shadow: 0 4px 12px #24362730;
+}
+.map-options-menu button { text-align: left; }
+.basemap-option, .map-layer-options legend { font-size: .85rem; font-weight: 700; }
+.map-layer-options { margin: .25rem 0; }
+.map-layer-options label { display: flex; align-items: center; gap: .45rem; min-height: 2.35rem; cursor: pointer; }
 .map-layer-options input { margin: 0; accent-color: var(--field-green); }
-.map-layer-options p { margin-block: .2rem .4rem; }
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem; }
 .modes [aria-pressed="true"], .outline { background: var(--field-light); color: var(--field-dark); border-color: #72906b; }
 #map-instruction { font-size: 1.05rem; font-weight: 700; line-height: 1.35; }
-.map-search-tip { margin-top: .2rem; color: var(--muted); line-height: 1.35; }
-#location-status { margin-top: .3rem; }
-.draw-actions { margin-top: .4rem; }
-.draw-actions button { min-height: 2rem; padding: .3rem .55rem; }
+#location-status { flex-basis: 100%; color: var(--muted); font-size: .85rem; }
 .add-actions, .queue-actions { margin-top: .15rem; }
 .queue-panel { grid-column: 1 / -1; }
 .queue-head { margin-bottom: .5rem; }
@@ -126,9 +139,9 @@ footer a { color: var(--county-blue); }
 .map-panel .step-actions { margin: .45rem .75rem .65rem; }
 #queue-actions:not([hidden]) ~ .step-actions { display: none; }
 .queue-pagination { display: flex; gap: .45rem; align-items: center; font-size: .76rem; }
-.map-search { display: flex; position: relative; align-items: center; gap: .35rem; padding: 0 .75rem; }
-.map-search input { flex: 1; min-width: 0; font-size: .8rem; }
-.search-response { position: absolute; z-index: 1100; top: 100%; left: .75rem; right: .75rem; background: white; border: 1px solid var(--rule); border-radius: .4rem; box-shadow: 0 5px 14px #24362730; padding: .35rem; }
+.map-search { display: flex; position: relative; align-items: center; gap: .35rem; padding: 0 .75rem .4rem; }
+.map-search input { flex: 1; min-width: 0; min-height: 2.65rem; font-size: 1rem; }
+.search-response { position: absolute; z-index: 1100; top: calc(100% - .4rem); left: .75rem; right: .75rem; background: white; border: 1px solid var(--rule); border-radius: .4rem; box-shadow: 0 5px 14px #24362730; padding: .35rem; max-height: 48dvh; overflow: auto; }
 .search-response ul { margin: 0; padding: 0; list-style: none; }
 .search-response li + li { margin-top: .15rem; }
 .search-response button { width: 100%; text-align: left; }
@@ -151,14 +164,20 @@ dialog::backdrop { background: #14251bb3; }
   .county-logo { width: min(9.5rem, 29%); }
   .county-bar button { padding-inline: .4rem; }
   .contact-fields { display: block; }
-  .map-panel { height: calc(100dvh - 8.5rem); }
-  .map-panel .map-controls { width: 100%; }
-  .map-controls:has(.map-layers[open]) { position: relative; z-index: 1101; }
-  .map-layers[open] { position: static; }
-  .legend { display: grid; font-size: .75rem; gap: .05rem; }
+  .map-panel { height: auto; }
+  .map-panel .panel-head { margin: 0; min-height: 0; padding: .15rem .55rem; }
+  .map-panel .panel-head h2 { font-size: 1.05rem; }
+  .map-controls { flex: none; gap: .25rem; }
+  .map-options summary, .map-footer-actions button { font-size: .82rem; }
+  .map-drawing { padding: .35rem .55rem; }
+  #map-instruction { font-size: .9rem; }
+  .map-search { padding-inline: .55rem; }
+  #map { flex: none; height: max(20rem, 62svh); }
+  #map .leaflet-control-zoom a { width: 44px; height: 44px; line-height: 44px; }
+  .map-footer { padding: .3rem .55rem; gap: .25rem .55rem; }
+  .legend { font-size: .75rem; gap: .3rem .65rem; }
 }
 @media (max-width: 420px) {
-  .map-controls button, .map-controls select, .map-layers summary, .map-footer-actions button { font-size: .82rem; }
   #report-help { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); padding: .8rem; }
   #report-help section { margin-top: .5rem; padding-top: .45rem; }
   #report-help form { margin-top: .65rem; }

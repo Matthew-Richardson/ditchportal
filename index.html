@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=reference-layers">
+  <link rel="stylesheet" href="./styles.css?v=mobile-map">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=reference-layers-on"></script>
+  <script type="module" src="./app.js?v=mobile-map"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -38,34 +38,30 @@
         <div class="panel-head">
           <h2 id="map-title" tabindex="-1">Mark the damage location</h2>
           <div class="map-controls">
-            <button type="button" id="county-view" class="subtle">County view</button>
-            <label class="sr-only" for="basemap">Basemap</label>
-            <select id="basemap" class="subtle"><option value="aerial" selected>County aerial</option><option value="topo">Topographic</option></select>
-            <details class="map-layers">
-              <summary class="subtle">Map layers</summary>
-              <div class="map-layer-options">
-                <label><input type="checkbox" id="show-roads" autocomplete="off" checked> Roads</label>
-                <label><input type="checkbox" id="show-addresses" autocomplete="off" checked> Address points</label>
-                <p class="help">Zoom in to see address points.</p>
+            <details class="map-options" id="map-options">
+              <summary class="subtle">Map options</summary>
+              <div class="map-options-menu">
+                <label class="basemap-option" for="basemap">Basemap</label>
+                <select id="basemap" class="subtle"><option value="aerial" selected>County aerial</option><option value="topo">Topographic</option></select>
+                <fieldset class="map-layer-options">
+                  <legend>Layers</legend>
+                  <label><input type="checkbox" id="show-roads" autocomplete="off" checked> Roads</label>
+                  <label><input type="checkbox" id="show-addresses" autocomplete="off" checked> Address points</label>
+                </fieldset>
                 <p id="reference-layer-status" class="help" role="status" hidden></p>
+                <button type="button" id="county-view" class="subtle">County view</button>
+                <button type="button" class="subtle" id="expand-map" aria-haspopup="dialog">Expand map</button>
               </div>
             </details>
-            <button type="button" class="subtle" id="expand-map" aria-haspopup="dialog">Expand map</button>
             <button type="button" class="subtle expanded-only" id="close-expanded-map">Exit full screen</button>
           </div>
         </div>
         <div class="map-drawing">
           <p id="map-instruction">Zoom in, then tap or click the damaged spot.</p>
-          <p class="map-search-tip">Search by address or ditch name to find the area.</p>
-          <p id="location-status" role="status" hidden></p>
-          <div id="draw-actions" class="draw-actions" hidden>
-            <button type="button" id="undo" class="subtle">Undo last point</button>
-            <button type="button" id="clear" class="subtle">Clear location</button>
-          </div>
         </div>
         <form class="map-search" id="map-search" role="search">
-          <label class="sr-only" for="search-input">Search map by street address or ditch name</label>
-          <input id="search-input" type="search" maxlength="100" placeholder="Street address or ditch name" autocomplete="off" aria-describedby="search-status">
+          <label class="sr-only" for="search-input">Find a street address</label>
+          <input id="search-input" type="search" maxlength="100" placeholder="Find an address" autocomplete="off" enterkeyhint="search">
           <button type="submit" class="subtle">Search</button>
           <div class="search-response" id="search-response" hidden>
             <p id="search-status" class="help" role="status"></p>
@@ -77,8 +73,13 @@
           <div class="legend"><span><i class="ditch-swatch"></i>Mapped ditch</span><span><i class="damage-swatch"></i>Marked damage</span></div>
           <div class="map-footer-actions">
             <button type="button" id="map-center" class="subtle">Use map center</button>
+            <div id="draw-actions" class="draw-actions" hidden>
+              <button type="button" id="undo" class="subtle">Undo last point</button>
+              <button type="button" id="clear" class="subtle">Clear location</button>
+            </div>
             <button type="button" class="primary expanded-only" id="finish-marking">Done marking</button>
           </div>
+          <p id="location-status" role="status" hidden></p>
         </div>
         <p id="layer-status" class="sr-only" role="status"></p>
         <div class="step-actions">
@@ -206,7 +207,7 @@
     <section>
       <h3>How to report</h3>
       <ol>
-        <li>Find the damage by address, ditch name, or zooming in.</li>
+        <li>Find the damage by searching for an address or zooming in on the map.</li>
         <li>Mark one damaged spot or trace a damaged stretch.</li>
         <li>Describe the damage and enter your contact information. You can send several locations together.</li>
       </ol>

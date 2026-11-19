@@ -53,14 +53,13 @@ async function checkIntake() {
 }
 message($('setup-status'), 'Checking whether online submissions are available…');
 
-const aerialMaxZoom = 21;
-const topoMaxZoom = 19;
-const map = L.map('map', { minZoom: 8, maxZoom: aerialMaxZoom, doubleClickZoom: false, zoomSnap: 0.5 });
+const maxMapZoom = 21;
+const map = L.map('map', { minZoom: 8, maxZoom: maxMapZoom, doubleClickZoom: false, zoomSnap: 0.5 });
 const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
-  maxNativeZoom: topoMaxZoom, maxZoom: aerialMaxZoom, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
+  maxNativeZoom: 19, maxZoom: maxMapZoom, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
 }).addTo(map);
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
-  bounds: countyBounds, minNativeZoom: 11, maxZoom: aerialMaxZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
+  bounds: countyBounds, minNativeZoom: 11, maxZoom: maxMapZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
 });
 aerial.on('tileerror', () => {
   message($('layer-status'), 'The topographic map fills gaps in aerial imagery.');
@@ -69,14 +68,31 @@ function updateBasemap() {
   const useAerial = $('basemap').value === 'aerial';
   if (useAerial) map.addLayer(aerial);
   else map.removeLayer(aerial);
-  map.setMaxZoom(useAerial ? aerialMaxZoom : topoMaxZoom);
 }
 $('basemap').addEventListener('change', updateBasemap);
 updateBasemap();
 const countyView = () => map.fitBounds(countyBounds, { padding: [10, 10], animate: false });
 map.setView(countyBounds.getCenter(), 9, { animate: false });
 let mapOpened = false;
-$('county-view').addEventListener('click', countyView);
+const mapOptions = $('map-options');
+const mapOptionsToggle = mapOptions.querySelector('summary');
+function closeMapOptions() {
+  mapOptions.open = false;
+  mapOptionsToggle.focus({ preventScroll: true });
+}
+$('county-view').addEventListener('click', () => {
+  countyView();
+  closeMapOptions();
+});
+mapOptions.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && mapOptions.open) {
+    event.preventDefault();
+    closeMapOptions();
+  }
+});
+document.addEventListener('click', event => {
+  if (!mapOptions.contains(event.target)) mapOptions.open = false;
+});
 L.control.scale({ metric: false }).addTo(map);
 
 let vectorSupport;
@@ -110,10 +126,25 @@ function loadVectorSupport() {
   return vectorSupport;
 }
 
+function keepDetailedAddressesVisible(style) {
+  // Keep the detailed point and house-number styles active through the closest zoom.
+  for (const layer of style.layers) {
+    if (layer.id === 'Address 1128 Point' || layer.id === 'Address 1128 Label') delete layer.maxzoom;
+    if (layer.id === 'Address 1128 Label') {
+      // The point layer now supplies the marker at every detailed zoom.
+      delete layer.layout['icon-image'];
+      delete layer.layout['icon-allow-overlap'];
+      delete layer.layout['text-optional'];
+      delete layer.paint['icon-color'];
+    }
+  }
+  return style;
+}
+
 const referenceLayerUpdates = [
   ['show-roads', 'Roads', 'Roads', 350],
-  ['show-addresses', 'AddressPoints', 'Address points', 360],
-].map(([inputId, service, name, zIndex]) => {
+  ['show-addresses', 'AddressPoints', 'Address points', 360, keepDetailedAddressesVisible],
+].map(([inputId, service, name, zIndex, style]) => {
   const input = $(inputId);
   const status = $('reference-layer-status');
   const pane = map.createPane(service);
@@ -131,7 +162,7 @@ const referenceLayerUpdates = [
     try {
       loading ??= loadVectorSupport().then(() => new Promise((resolve, reject) => {
         const overlay = L.esri.Vector.vectorTileLayer(COUNTY + '/Hosted/' + service + '/VectorTileServer', {
-          pane: service, attribution: 'La Plata County GIS',
+          pane: service, attribution: 'La Plata County GIS', style,
         });
         overlay.once('ready', () => resolve(overlay));
         overlay.once('load-error', reject);
@@ -207,6 +238,7 @@ function resizeMap() {
 }
 
 $('expand-map').addEventListener('click', () => {
+  mapOptions.open = false;
   expandedMap.returnValue = '';
   expandedMap.append(mapPanel);
   expandedMap.showModal();
@@ -226,7 +258,7 @@ expandedMap.addEventListener('close', () => {
   $('map-home').after(mapPanel);
   resizeMap();
   if (expandedMap.returnValue === 'done') setStep('damage', true);
-  else $('expand-map').focus({ preventScroll: true });
+  else mapOptionsToggle.focus({ preventScroll: true });
 });
 
 const queuedLayer = L.layerGroup().addTo(map);
@@ -275,7 +307,7 @@ async function loadDitches() {
     message($('layer-status'), 'Mapped ditches are temporarily unavailable. You can still mark damage on the map.');
   }
 }
-const ditchesLoaded = loadDitches();
+loadDitches();
 
 function renderDitchLabels() {
   ditchLabels.clearLayers();
@@ -302,35 +334,15 @@ function renderDitchLabels() {
 map.on('moveend', renderDitchLabels);
 
 async function findAddresses(term, signal) {
-  if (!/^\d/.test(term)) return [];
-  const normalized = term.toUpperCase().replace(/\bCOUNTY ROAD\b/g, 'CR').replace(/[^A-Z0-9.' -]/g, '');
-  const prefix = normalized.replaceAll("'", "''");
   const params = new URLSearchParams({
-    f: 'json', where: "UPPER(PROPERTY_A) LIKE '" + prefix + "%'",
-    outFields: 'PROPERTY_A', returnGeometry: 'true', outSR: '4326', resultRecordCount: '5',
+    f: 'json', SingleLine: term, outSR: '4326', forStorage: 'false', maxLocations: '5',
+    searchExtent: countyBounds.pad(.08).toBBoxString(), sourceCountry: 'USA',
   });
-  const response = await fetch(COUNTY + '/Operational_Layers/Search_and_Select_Query/MapServer/0/query?' + params, { signal });
+  const response = await fetch('https://geocode.arcgis.com/arcgis/rest/services/World/GeocodeServer/findAddressCandidates?' + params, { signal });
   const data = await response.json();
-  if (!response.ok || !Array.isArray(data.features)) throw new Error('Address search unavailable');
-  return data.features.filter(feature => feature.geometry && feature.attributes.PROPERTY_A).map(feature => ({
-    label: feature.attributes.PROPERTY_A,
-    locate: () => map.setView([feature.geometry.y, feature.geometry.x], 17),
-  }));
-}
-
-function findDitches(term) {
-  const names = new Map();
-  const words = term.toLowerCase().split(/\s+/);
-  for (const { path, ditch } of ditchPaths) {
-    const key = ditch.name.toLowerCase();
-    if (!key || !words.every(word => key.includes(word))) continue;
-    if (names.has(key)) names.get(key).bounds.extend(path);
-    else names.set(key, { label: ditch.name, bounds: L.latLngBounds(path) });
-  }
-  return [...names.values()].sort((a, b) => a.label.localeCompare(b.label)).slice(0, 6).map(result => ({
-    label: result.label,
-    locate: () => map.fitBounds(result.bounds, { maxZoom: 17, padding: [18, 18] }),
-  }));
+  if (!response.ok || !Array.isArray(data.candidates)) throw new Error('Address search unavailable');
+  return data.candidates.filter(({ address, location }) =>
+    address && Number.isFinite(location?.y) && Number.isFinite(location?.x));
 }
 
 let searchRequest;
@@ -359,28 +371,27 @@ $('map-search').addEventListener('submit', async event => {
   holder.hidden = false;
   list.hidden = true;
   list.replaceChildren();
-  message(status, term.length < 2 ? 'Enter a street address or ditch name.' : 'Searching…');
+  message(status, term.length < 2 ? 'Enter a street address.' : 'Searching…');
   if (term.length < 2) return;
   searchRequest = new AbortController();
   const request = searchRequest;
-  const tasks = await Promise.allSettled([
-    findAddresses(term, AbortSignal.any([request.signal, AbortSignal.timeout(9000)])),
-    ditchesLoaded.then(() => findDitches(term)),
-  ]);
-  if (request.signal.aborted) return;
-  const matches = tasks.flatMap(task => task.status === 'fulfilled' ? task.value : []).slice(0, 6);
-  message(status, matches.length ? '' : tasks[0].status === 'rejected'
-    ? 'Address search is unavailable. Try a ditch name or use the map.' : 'No matches. Try a shorter address or ditch name.');
-  list.hidden = !matches.length;
-  for (const match of matches) {
-    const item = document.createElement('li');
-    item.append(createButton(match.label, () => {
-      $('search-input').value = match.label;
-      match.locate();
-      closeSearch();
-      $('map').focus({ preventScroll: true });
-    }));
-    list.append(item);
+  try {
+    const matches = await findAddresses(term, AbortSignal.any([request.signal, AbortSignal.timeout(9000)]));
+    if (request.signal.aborted) return;
+    message(status, matches.length ? '' : 'No addresses found. Try adding the city or ZIP code.');
+    list.hidden = !matches.length;
+    for (const { address, location } of matches) {
+      const item = document.createElement('li');
+      item.append(createButton(address, () => {
+        $('search-input').value = address;
+        map.setView([location.y, location.x], 17);
+        closeSearch();
+        $('map').focus({ preventScroll: true });
+      }));
+      list.append(item);
+    }
+  } catch {
+    if (!request.signal.aborted) message(status, 'Address search is unavailable. You can still use the map.', true);
   }
 });
 
