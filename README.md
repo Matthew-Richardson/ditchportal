@@ -64,3 +64,14 @@ See [Esri's editing settings](https://doc.arcgis.com/en/arcgis-online/manage-dat
 4. Verify an invalid edit rolls back the reports and photos sent to that view. Send one final valid test from a phone over cellular before distributing the URL.
 
 The browser sends a service-level `applyEdits` request with rollback enabled for each geometry type present. With separate views, one request can succeed while the other fails. The portal removes confirmed reports from the queue and retries only the remaining reports using their original Global IDs. Staff can look up either geometry type by the shared `batch_id` if a receipt remains unconfirmed.
+
+## Add the public report map
+
+The **View reported damage** button appears after both public layer URLs are set under `publicReports` in [config.js](config.js). The button opens a separate, read-only map in the portal. After a successful submission, **View my reports** opens the same map centered on the submitted locations and highlights any that are already public. If the public layers take time to update, the map still centers on the submitted area using the bounds held in the current tab.
+
+1. From the same private sources, create read-only hosted feature layer views for the report spots and stretches. Both sublayers can go in one view item if they share a source service. Keep the existing submission views and private sources in place.
+2. Set each public view's feature and field definitions in ArcGIS Online. Filter to staff-approved features, for example with a staff-managed approval field defaulting to unapproved and excluded from the public intake and display views. Include only `damage_type`, `observed_date`, `batch_id`, geometry, and the fields ArcGIS requires. The map uses the publicly queryable `batch_id` to find locations by the submission reference. Review the location and category before approving each feature. If precise geometry could identify a household, use a separate sanitized layer with approximate geometry for that map feed.
+3. Turn off editing and sync on the public views. For each public view sublayer, turn off **Show attachments** on the sublayer's item page. Share the public views with **Everyone (public)**.
+4. While signed out, check each public REST layer and a query with `outFields=*` for approved rows and allowed fields only. Check that report photo listings and a known photo URL are inaccessible through the public views. Enter the two layer URLs ending in `/FeatureServer/<layerId>` in `config.js`. Verify both geometries and popups in the portal, then retest new submissions.
+
+See Esri's [field and feature restrictions](https://doc.arcgis.com/en/arcgis-online/manage-data/set-view-definition.htm) and [attachment visibility settings](https://doc.arcgis.com/en/arcgis-online/manage-data/manage-attachments-online.htm).

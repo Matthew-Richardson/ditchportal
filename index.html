@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=mobile-map">
+  <link rel="stylesheet" href="./styles.css?v=public-reports">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=mobile-map"></script>
+  <script type="module" src="./app.js?v=public-reports"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -30,6 +30,7 @@
           <button type="button" class="choice" data-mode="line"><strong>A stretch of ditch</strong><span>Trace the part of the ditch that was damaged from start to end.</span></button>
         </div>
         <p class="step-instructions">Some ditches are missing from the county map. You can still report damage there.</p>
+        <button type="button" class="subtle" id="show-reported-damage" aria-haspopup="dialog" hidden>View reported damage</button>
         <button type="button" class="subtle" id="review-saved" hidden>Review saved locations</button>
       </section>
       <div id="map-home" hidden></div>
@@ -190,6 +191,7 @@
         </div>
         <div class="step-actions"><button type="button" class="subtle" data-go="choose">Start a location</button></div>
         <p id="send-message" class="form-message" role="status" hidden></p>
+        <button type="button" class="subtle" id="view-submitted-reports" aria-haspopup="dialog" hidden>View my reports</button>
       </section>
     </div>
     <footer>
@@ -198,6 +200,27 @@
     </footer>
   </main>
   <dialog id="expanded-map" aria-label="Full-screen damage map"></dialog>
+  <dialog id="reported-damage" aria-labelledby="reported-damage-title">
+    <div class="panel-head">
+      <h2 id="reported-damage-title">Resident-reported ditch damage</h2>
+      <form method="dialog"><button class="subtle" autofocus>Close</button></form>
+    </div>
+    <p class="reported-damage-note">The public map shows only some report information. Contact details, notes, and photos are private. Some locations may be missing or take time to appear.</p>
+    <form class="report-reference-search" id="report-reference-search" role="search">
+      <label for="report-reference">Find my report</label>
+      <input id="report-reference" name="reference" type="search" maxlength="38" placeholder="Submission reference number" autocomplete="off" required disabled>
+      <button id="find-report-reference" class="subtle" type="submit" disabled>Find</button>
+    </form>
+    <p id="report-reference-status" class="reported-damage-note" role="status" hidden></p>
+    <div id="reported-damage-map" role="region" aria-label="Reported ditch damage map"></div>
+    <div class="map-footer">
+      <div class="legend">
+        <span><i class="report-point-swatch"></i>Damage spot</span>
+        <span><i class="report-line-swatch"></i>Damaged stretch</span>
+      </div>
+      <p id="reported-damage-status" class="help" role="status"></p>
+    </div>
+  </dialog>
   <dialog id="report-help" aria-labelledby="help-title">
     <h2 id="help-title" tabindex="-1" autofocus>Before you report</h2>
     <section>

@@ -1,5 +1,6 @@
-import { config } from './config.js';
+import { config } from './config.js?v=public-reports';
 import { canSubmit, globalId, sendReports } from './intake.js';
+import { setupPublicReports } from './public-reports.js?v=public-reports';
 
 const $ = id => document.getElementById(id);
 const helpDialog = $('report-help');
@@ -20,6 +21,8 @@ const optionalFields = [
   'acres_affected', 'repair_status', 'contact_name', 'contact_phone', 'contact_email',
 ];
 const queue = [];
+const confirmedLocations = [];
+let latestReceipt = null;
 let reportPage = 0;
 const reportSteps = ['choose', 'map', 'damage', 'impact', 'contact'];
 const stepHeadings = { choose: 'choice-title', map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
@@ -55,9 +58,13 @@ message($('setup-status'), 'Checking whether online submissions are available…
 
 const maxMapZoom = 21;
 const map = L.map('map', { minZoom: 8, maxZoom: maxMapZoom, doubleClickZoom: false, zoomSnap: 0.5 });
-const topo = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+const topoUrl = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}';
+const topoOptions = {
   maxNativeZoom: 19, maxZoom: maxMapZoom, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
-}).addTo(map);
+};
+const topo = L.tileLayer(topoUrl, topoOptions).addTo(map);
+const openPublicReports = setupPublicReports(L, config, countyBounds, topoUrl, topoOptions);
+$('view-submitted-reports').addEventListener('click', () => openPublicReports?.(latestReceipt));
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
   bounds: countyBounds, minNativeZoom: 11, maxZoom: maxMapZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
 });
@@ -713,7 +720,7 @@ function hasDraft() {
 
 function renderQueue() {
   $('queue-count').textContent = queue.length + (queue.length === 1 ? ' report' : ' reports');
-  $('empty-queue').hidden = queue.length > 0;
+  $('empty-queue').hidden = queue.length > 0 || Boolean(latestReceipt);
   $('queue-actions').hidden = queue.length === 0;
   $('review-instructions').hidden = queue.length === 0;
   $('review-saved').hidden = queue.length === 0;
@@ -795,6 +802,8 @@ $('send').addEventListener('click', async () => {
     return;
   }
   sending = true;
+  latestReceipt = null;
+  $('view-submitted-reports').hidden = true;
   updateControls();
   const reference = batchId.slice(1, -1);
   message($('send-message'), 'Sending reports and photos…');
@@ -806,11 +815,17 @@ $('send').addEventListener('click', async () => {
     }
     await sendReports(queue, config, batchId, reports => {
       confirmed += reports.length;
-      for (const report of reports) queue.splice(queue.indexOf(report), 1);
+      for (const report of reports) {
+        confirmedLocations.push(report.points);
+        queue.splice(queue.indexOf(report), 1);
+      }
     });
     uncertain = false;
+    const locations = confirmedLocations.splice(0);
+    latestReceipt = { reference, bounds: L.latLngBounds(locations.flat()) };
     batchId = globalId();
-    message($('send-message'), 'Received ' + confirmed + (confirmed === 1 ? ' report' : ' reports') + '. Reference ' + reference + '.');
+    message($('send-message'), 'Received ' + locations.length + (locations.length === 1 ? ' report' : ' reports') + '. Reference ' + reference + '.');
+    $('view-submitted-reports').hidden = !openPublicReports;
   } catch (error) {
     uncertain ||= Boolean(error.uncertain);
     const received = confirmed ? 'Received ' + confirmed + ' of your reports. ' : '';
