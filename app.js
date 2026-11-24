@@ -16,13 +16,16 @@ const damageOutline = mapColors.getPropertyValue('--damage-outline').trim();
 const maxReports = 10;
 const maxBatchPhotos = 8;
 const maxReportPhotos = 3;
+const contactFields = ['contact_name', 'contact_phone', 'contact_email'];
 const optionalFields = [
   'ditch_operator', 'observed_date', 'damage_cause', 'delivery_status', 'threat_notes',
-  'acres_affected', 'repair_status', 'contact_name', 'contact_phone', 'contact_email',
+  'acres_affected', 'repair_status', ...contactFields,
 ];
 const queue = [];
 const confirmedLocations = [];
 let latestReceipt = null;
+let lastSavedReportId;
+let prefilledContact = null;
 let reportPage = 0;
 const reportSteps = ['choose', 'map', 'damage', 'impact', 'contact'];
 const stepHeadings = { choose: 'choice-title', map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
@@ -206,6 +209,16 @@ function renderProgress() {
 }
 
 function setStep(step, focusHeading = false) {
+  if (step === 'contact' && !editing && !prefilledContact && !contactFields.some(field => $(field).value)) {
+    const previous = queue.find(report => report.id === lastSavedReportId) ?? queue.at(-1);
+    if (previous) {
+      prefilledContact = Object.fromEntries(contactFields.map(field => [field, previous.details[field]]));
+      for (const field of contactFields) {
+        $(field).value = prefilledContact[field];
+        $(field).setCustomValidity('');
+      }
+    }
+  }
   $('layout').dataset.activeStep = step;
   renderProgress();
   if (focusHeading) {
@@ -624,6 +637,7 @@ $('photos').addEventListener('change', async event => {
 
 function resetForm() {
   editing = null;
+  prefilledContact = null;
   mode = null;
   points = [];
   draftDitch = null;
@@ -676,6 +690,7 @@ $('damage-form').addEventListener('submit', event => {
   const index = queue.findIndex(value => value.id === editing);
   if (index < 0) queue.push(report);
   else queue[index] = report;
+  lastSavedReportId = report.id;
   resetForm();
   message($('form-message'));
   message($('send-message'));
@@ -736,7 +751,8 @@ function editReport(report) {
 
 function hasDraft() {
   return Boolean(editing || points.length || photos.length || $('ditch-name').value ||
-    $('damage-type').value || $('notes').value || optionalFields.some(field => $(field).value));
+    $('damage-type').value || $('notes').value ||
+    optionalFields.some(field => $(field).value !== (prefilledContact?.[field] ?? '')));
 }
 
 function renderQueue() {
