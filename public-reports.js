@@ -85,7 +85,7 @@ function reportPopup({ properties }, title) {
 }
 
 export function setupPublicReports(L, config, {
-  countyBounds, topoUrl, topoOptions, requestDitchData, damageColor, damageOutline,
+  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor, damageOutline,
 }) {
   const intakeUrls = [config.point.url, config.line.url].map(url => url.replace(/\/$/, '').toLowerCase());
   const pointUrl = publicLayerUrl(config.publicReports?.point, intakeUrls);
@@ -114,15 +114,7 @@ export function setupPublicReports(L, config, {
   }
 
   function showDitches() {
-    ditchLayerRequest ??= requestDitchData().then(data => {
-      const options = { pane: 'mapped-ditches', interactive: false };
-      const dashArray = '5 5';
-      L.geoJSON(data, { ...options, style: { color: damageOutline, weight: 3.5, dashArray } }).addTo(map);
-      L.geoJSON(data, {
-        ...options,
-        style: { color: damageColor, weight: 2, dashArray },
-        attribution: 'La Plata County GIS, Irrigation Ditches',
-      }).addTo(map);
+    ditchLayerRequest ??= addMappedDitches(map, 'mapped-ditches').then(() => {
       ditchStatus.hidden = true;
     }).catch(() => {
       ditchLayerRequest = undefined;

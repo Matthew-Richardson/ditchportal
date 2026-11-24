@@ -1,6 +1,6 @@
 import { config } from './config.js?v=public-reports';
 import { canSubmit, globalId, sendReports } from './intake.js';
-import { setupPublicReports } from './public-reports.js?v=mapped-ditches';
+import { setupPublicReports } from './public-reports.js?v=purple-ditches';
 
 const $ = id => document.getElementById(id);
 const helpDialog = $('report-help');
@@ -65,7 +65,7 @@ const topoOptions = {
 };
 const topo = L.tileLayer(topoUrl, topoOptions).addTo(map);
 const openPublicReports = setupPublicReports(L, config, {
-  countyBounds, topoUrl, topoOptions, requestDitchData, damageColor: damageStyle.color, damageOutline,
+  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor: damageStyle.color, damageOutline,
 });
 $('view-submitted-reports').addEventListener('click', () => openPublicReports?.(latestReceipt));
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
@@ -301,9 +301,21 @@ function requestDitchData() {
   return ditchDataRequest;
 }
 
+async function addMappedDitches(targetMap, pane) {
+  const data = await requestDitchData();
+  const options = { pane, interactive: false };
+  L.geoJSON(data, { ...options, style: { color: '#fff8fc', weight: 5, opacity: .85 } }).addTo(targetMap);
+  L.geoJSON(data, {
+    ...options,
+    style: { color: mapColors.getPropertyValue('--ditch').trim(), weight: 2.8, opacity: 1 },
+    attribution: 'La Plata County GIS, Irrigation Ditches',
+  }).addTo(targetMap);
+  return data;
+}
+
 async function loadDitches() {
   try {
-    const data = await requestDitchData();
+    const data = await addMappedDitches(map, 'ditches');
     ditchPaths = data.features.flatMap(({ geometry, properties }) => {
       if (!geometry) return [];
       const paths = geometry.type === 'LineString' ? [geometry.coordinates] : geometry.coordinates;
@@ -317,11 +329,6 @@ async function loadDitches() {
         return { path: points, ditch, anchor: points[Math.floor(points.length / 2)], length: lengthFeet(points) };
       });
     });
-    const ditchStroke = { pane: 'ditches', interactive: false };
-    L.geoJSON(data, { ...ditchStroke, style: { color: '#fff8fc', weight: 5, opacity: .85 } }).addTo(map);
-    L.geoJSON(data, { ...ditchStroke, style: { color: mapColors.getPropertyValue('--ditch').trim(), weight: 2.8, opacity: 1 },
-      attribution: 'La Plata County GIS, Irrigation Ditches',
-    }).addTo(map);
     ditchPaths.sort((a, b) => b.length - a.length);
     renderDitchLabels();
   } catch {
