@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=purple-ditches">
+  <link rel="stylesheet" href="./styles.css?v=damage-labels">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=repeat-contact"></script>
+  <script type="module" src="./app.js?v=damage-labels"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -30,8 +30,10 @@
           <button type="button" class="choice" data-mode="line"><strong>A stretch of ditch</strong><span>Trace the part of the ditch that was damaged from start to end.</span></button>
         </div>
         <p class="step-instructions">Some ditches are missing from the county map. You can still report damage there.</p>
-        <button type="button" class="subtle" id="show-reported-damage" aria-haspopup="dialog" hidden>View reported damage</button>
-        <button type="button" class="subtle" id="review-saved" hidden>Review saved locations</button>
+        <div class="choice-actions">
+          <button type="button" class="subtle" id="show-reported-damage" aria-haspopup="dialog" hidden>View reported damage</button>
+          <button type="button" class="subtle" id="review-saved" hidden>Review saved locations</button>
+        </div>
       </section>
       <div id="map-home" hidden></div>
       <section class="panel map-panel" id="map-panel" aria-labelledby="map-title">
@@ -189,9 +191,11 @@
           <button type="button" class="primary" id="send">Send reports</button>
           <p class="help" id="send-help">Saved reports stay in this tab until you send them.</p>
         </div>
-        <div class="step-actions"><button type="button" class="subtle" data-go="choose">Start a location</button></div>
         <p id="send-message" class="form-message" role="status" hidden></p>
-        <button type="button" class="subtle" id="view-submitted-reports" aria-haspopup="dialog" hidden>View my reports</button>
+        <div class="step-actions">
+          <button type="button" class="subtle" data-go="choose">Start a location</button>
+          <button type="button" class="subtle" id="view-submitted-reports" aria-haspopup="dialog" hidden>View my reports</button>
+        </div>
       </section>
     </div>
     <footer>

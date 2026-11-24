@@ -1,6 +1,6 @@
 import { config } from './config.js?v=public-reports';
 import { canSubmit, globalId, sendReports } from './intake.js';
-import { setupPublicReports } from './public-reports.js?v=purple-ditches';
+import { setupPublicReports } from './public-reports.js?v=damage-labels';
 
 const $ = id => document.getElementById(id);
 const helpDialog = $('report-help');
@@ -13,6 +13,7 @@ const countyBounds = L.latLngBounds([36.99, -108.25], [37.66, -107.46]);
 const mapColors = getComputedStyle(document.documentElement);
 const damageStyle = { color: mapColors.getPropertyValue('--damage').trim(), weight: 4, opacity: 1, interactive: false };
 const damageOutline = mapColors.getPropertyValue('--damage-outline').trim();
+const ditchDetailZoom = 12;
 const maxReports = 10;
 const maxBatchPhotos = 8;
 const maxReportPhotos = 3;
@@ -68,7 +69,7 @@ const topoOptions = {
 };
 const topo = L.tileLayer(topoUrl, topoOptions).addTo(map);
 const openPublicReports = setupPublicReports(L, config, {
-  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor: damageStyle.color, damageOutline,
+  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor: damageStyle.color, damageOutline, ditchDetailZoom,
 });
 $('view-submitted-reports').addEventListener('click', () => openPublicReports?.(latestReceipt));
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
@@ -352,7 +353,7 @@ loadDitches();
 
 function renderDitchLabels() {
   ditchLabels.clearLayers();
-  if (map.getZoom() < 12 || !$('map').clientWidth) return;
+  if (map.getZoom() < ditchDetailZoom || !$('map').clientWidth) return;
   const bounds = map.getBounds().pad(-.04);
   const names = new Set();
   const occupied = [];

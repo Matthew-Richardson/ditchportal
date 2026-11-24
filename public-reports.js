@@ -85,7 +85,7 @@ function reportPopup({ properties }, title) {
 }
 
 export function setupPublicReports(L, config, {
-  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor, damageOutline,
+  countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor, damageOutline, ditchDetailZoom,
 }) {
   const intakeUrls = [config.point.url, config.line.url].map(url => url.replace(/\/$/, '').toLowerCase());
   const pointUrl = publicLayerUrl(config.publicReports?.point, intakeUrls);
@@ -103,6 +103,8 @@ export function setupPublicReports(L, config, {
   let map;
   let reports;
   let highlights;
+  let damageLabels;
+  let labelLayers = [];
   let ditchLayerRequest;
   let publicFeatures = [];
   let loading = false;
@@ -121,6 +123,29 @@ export function setupPublicReports(L, config, {
       ditchStatus.textContent = 'Mapped ditches are temporarily unavailable.';
       ditchStatus.hidden = false;
     });
+  }
+
+  function renderDamageLabels() {
+    damageLabels.clearLayers();
+    if (!dialog.open || map.getZoom() < ditchDetailZoom) return;
+    const bounds = map.getBounds().pad(-.035);
+    const occupied = [];
+    for (const layer of labelLayers) {
+      const title = layer.feature.properties?.damage_type?.trim();
+      if (!title) continue;
+      const center = layer.getLatLng?.() ?? layer.getCenter();
+      const location = bounds.contains(center) ? center :
+        layer.getLatLngs?.().flat().find(point => bounds.contains(point));
+      if (!location) continue;
+      const { x, y } = map.latLngToContainerPoint(location);
+      const halfWidth = title.length * 3.5 + 9;
+      if (occupied.some(label => Math.abs(label.y - y) < 22 && Math.abs(label.x - x) < label.halfWidth + halfWidth)) continue;
+      occupied.push({ x, y, halfWidth });
+      const text = document.createElement('span');
+      text.textContent = title;
+      L.tooltip({ permanent: true, direction: 'top', offset: [0, -8], className: 'damage-type-label', opacity: 1 })
+        .setLatLng(location).setContent(text).addTo(damageLabels);
+    }
   }
 
   function highlightReference(reference, submittedBounds) {
@@ -170,6 +195,8 @@ export function setupPublicReports(L, config, {
       map.createPane('mapped-ditches').style.zIndex = 390;
       reports = L.layerGroup().addTo(map);
       highlights = L.layerGroup().addTo(map);
+      damageLabels = L.layerGroup().addTo(map);
+      map.on('moveend resize', renderDamageLabels);
     } else {
       map.invalidateSize();
       map.fitBounds(receipt?.bounds ?? countyBounds, reportZoom);
@@ -181,6 +208,8 @@ export function setupPublicReports(L, config, {
     loading = true;
     reports.clearLayers();
     highlights.clearLayers();
+    labelLayers = [];
+    damageLabels.clearLayers();
     publicFeatures = [];
     referenceInput.disabled = true;
     findButton.disabled = true;
@@ -204,6 +233,8 @@ export function setupPublicReports(L, config, {
         onEachFeature: (feature, layer) => layer.bindPopup(() => reportPopup(feature, 'Damage spot')),
       });
       reports.addLayer(stretchOutline).addLayer(stretches).addLayer(spots);
+      labelLayers = [...spots.getLayers(), ...stretches.getLayers()];
+      renderDamageLabels();
       publicFeatures = [...points, ...lines];
       referenceInput.disabled = !publicFeatures.length;
       findButton.disabled = !publicFeatures.length;
