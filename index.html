@@ -6,9 +6,9 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=public-reports">
+  <link rel="stylesheet" href="./styles.css?v=mapped-ditches">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=public-reports"></script>
+  <script type="module" src="./app.js?v=mapped-ditches"></script>
 </head>
 <body>
   <header class="county-bar">
@@ -215,10 +215,12 @@
     <div id="reported-damage-map" role="region" aria-label="Reported ditch damage map"></div>
     <div class="map-footer">
       <div class="legend">
+        <span><i class="report-ditch-swatch"></i>Mapped ditch</span>
         <span><i class="report-point-swatch"></i>Damage spot</span>
         <span><i class="report-line-swatch"></i>Damaged stretch</span>
       </div>
       <p id="reported-damage-status" class="help" role="status"></p>
+      <p id="reported-ditch-status" class="help" role="status" hidden></p>
     </div>
   </dialog>
   <dialog id="report-help" aria-labelledby="help-title">

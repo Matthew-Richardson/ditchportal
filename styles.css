@@ -165,8 +165,9 @@ dialog::backdrop { background: #14251bb3; }
 .report-reference-search input { flex: 1 1 13rem; min-width: 0; min-height: 2.65rem; }
 #reported-damage-map { height: clamp(13rem, 62dvh, 36rem); background: #e1e9de; }
 #reported-damage-status:empty { display: none; }
-.legend .report-point-swatch { width: .72rem; height: .72rem; border: 2px solid white; border-radius: 50%; background: #815100; box-shadow: 0 0 0 1px #815100; }
-.legend .report-line-swatch { border-color: #815100; }
+.legend .report-ditch-swatch { border: 0; height: .28rem; background: repeating-linear-gradient(to right, var(--damage) 0 .25rem, transparent .25rem .4rem); filter: drop-shadow(0 0 1px var(--damage-outline)); }
+.legend .report-point-swatch { width: .72rem; height: .72rem; border: 2px solid var(--damage-outline); border-radius: 50%; background: var(--damage); }
+.legend .report-line-swatch { height: .38rem; background: var(--damage); border: 1px solid var(--damage-outline); }
 #report-help h2 { font-size: 1.3rem; }
 #report-help h2:focus { outline: none; }
 #report-help section { margin-top: .7rem; padding-top: .6rem; border-top: 1px solid var(--rule); }

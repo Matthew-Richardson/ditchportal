@@ -1,6 +1,5 @@
 const publicFields = ['damage_type', 'observed_date', 'batch_id'];
 const dateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
-const markerColor = '#815100';
 const reportZoom = { maxZoom: 16, padding: [32, 32] };
 
 function normalizeReference(value) {
@@ -85,7 +84,9 @@ function reportPopup({ properties }, title) {
   return popup;
 }
 
-export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions) {
+export function setupPublicReports(L, config, {
+  countyBounds, topoUrl, topoOptions, requestDitchData, damageColor, damageOutline,
+}) {
   const intakeUrls = [config.point.url, config.line.url].map(url => url.replace(/\/$/, '').toLowerCase());
   const pointUrl = publicLayerUrl(config.publicReports?.point, intakeUrls);
   const lineUrl = publicLayerUrl(config.publicReports?.line, intakeUrls);
@@ -94,6 +95,7 @@ export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions
   const button = document.getElementById('show-reported-damage');
   const dialog = document.getElementById('reported-damage');
   const status = document.getElementById('reported-damage-status');
+  const ditchStatus = document.getElementById('reported-ditch-status');
   const search = document.getElementById('report-reference-search');
   const referenceInput = document.getElementById('report-reference');
   const findButton = document.getElementById('find-report-reference');
@@ -101,6 +103,7 @@ export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions
   let map;
   let reports;
   let highlights;
+  let ditchLayerRequest;
   let publicFeatures = [];
   let loading = false;
   let submission = null;
@@ -108,6 +111,24 @@ export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions
   function updateSearchStatus(text) {
     searchStatus.textContent = text;
     searchStatus.hidden = !text;
+  }
+
+  function showDitches() {
+    ditchLayerRequest ??= requestDitchData().then(data => {
+      const options = { pane: 'mapped-ditches', interactive: false };
+      const dashArray = '5 5';
+      L.geoJSON(data, { ...options, style: { color: damageOutline, weight: 3.5, dashArray } }).addTo(map);
+      L.geoJSON(data, {
+        ...options,
+        style: { color: damageColor, weight: 2, dashArray },
+        attribution: 'La Plata County GIS, Irrigation Ditches',
+      }).addTo(map);
+      ditchStatus.hidden = true;
+    }).catch(() => {
+      ditchLayerRequest = undefined;
+      ditchStatus.textContent = 'Mapped ditches are temporarily unavailable.';
+      ditchStatus.hidden = false;
+    });
   }
 
   function highlightReference(reference, submittedBounds) {
@@ -154,12 +175,14 @@ export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions
       map = L.map('reported-damage-map', { maxZoom: 17, scrollWheelZoom: false });
       L.tileLayer(topoUrl, topoOptions).addTo(map);
       map.fitBounds(receipt?.bounds ?? countyBounds, reportZoom);
+      map.createPane('mapped-ditches').style.zIndex = 390;
       reports = L.layerGroup().addTo(map);
       highlights = L.layerGroup().addTo(map);
     } else {
       map.invalidateSize();
       map.fitBounds(receipt?.bounds ?? countyBounds, reportZoom);
     }
+    showDitches();
     referenceInput.value = receipt?.reference ?? '';
     updateSearchStatus('');
     if (loading) return;
@@ -175,17 +198,20 @@ export function setupPublicReports(L, config, countyBounds, topoUrl, topoOptions
         loadPublicFeatures(pointUrl, 'esriGeometryPoint'),
         loadPublicFeatures(lineUrl, 'esriGeometryPolyline'),
       ]);
+      const stretchOutline = L.geoJSON(lines, {
+        interactive: false, style: { color: damageOutline, weight: 7 },
+      });
       const stretches = L.geoJSON(lines, {
-        style: { color: markerColor, weight: 5 },
+        style: { color: damageColor, weight: 4 },
         onEachFeature: (feature, layer) => layer.bindPopup(() => reportPopup(feature, 'Damaged stretch')),
       });
       const spots = L.geoJSON(points, {
         pointToLayer: (feature, location) => L.circleMarker(location, {
-          radius: 6, color: '#fff', weight: 2, fillColor: markerColor, fillOpacity: 1,
+          radius: 7, color: damageOutline, weight: 2, fillColor: damageColor, fillOpacity: 1,
         }),
         onEachFeature: (feature, layer) => layer.bindPopup(() => reportPopup(feature, 'Damage spot')),
       });
-      reports.addLayer(stretches).addLayer(spots);
+      reports.addLayer(stretchOutline).addLayer(stretches).addLayer(spots);
       publicFeatures = [...points, ...lines];
       referenceInput.disabled = !publicFeatures.length;
       findButton.disabled = !publicFeatures.length;

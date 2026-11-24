@@ -1,6 +1,6 @@
 import { config } from './config.js?v=public-reports';
 import { canSubmit, globalId, sendReports } from './intake.js';
-import { setupPublicReports } from './public-reports.js?v=public-reports';
+import { setupPublicReports } from './public-reports.js?v=mapped-ditches';
 
 const $ = id => document.getElementById(id);
 const helpDialog = $('report-help');
@@ -37,6 +37,7 @@ let sending = false;
 let intakeReady = false;
 let uncertain = false;
 let ditchPaths = [];
+let ditchDataRequest;
 
 function message(element, value = '', error = false) {
   element.textContent = value;
@@ -63,7 +64,9 @@ const topoOptions = {
   maxNativeZoom: 19, maxZoom: maxMapZoom, attribution: 'Esri, HERE, Garmin, USGS, OpenStreetMap contributors',
 };
 const topo = L.tileLayer(topoUrl, topoOptions).addTo(map);
-const openPublicReports = setupPublicReports(L, config, countyBounds, topoUrl, topoOptions);
+const openPublicReports = setupPublicReports(L, config, {
+  countyBounds, topoUrl, topoOptions, requestDitchData, damageColor: damageStyle.color, damageOutline,
+});
 $('view-submitted-reports').addEventListener('click', () => openPublicReports?.(latestReceipt));
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
   bounds: countyBounds, minNativeZoom: 11, maxZoom: maxMapZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
@@ -279,17 +282,28 @@ function drawDamageLine(points, layer) {
   L.polyline(points, damageStyle).addTo(layer);
 }
 
-async function loadDitches() {
-  const params = new URLSearchParams({
-    f: 'geojson', where: '1=1', outFields: 'OBJECTID_1,Name,FEAT_NAME,GNIS_Name', outSR: '4326',
-    returnM: 'false', returnZ: 'false',
-  });
-  try {
+function requestDitchData() {
+  ditchDataRequest ??= (async () => {
+    const params = new URLSearchParams({
+      f: 'geojson', where: '1=1', outFields: 'OBJECTID_1,Name,FEAT_NAME,GNIS_Name', outSR: '4326',
+      returnM: 'false', returnZ: 'false',
+    });
     const response = await fetch(COUNTY + '/Operational_Layers/Hydrology/MapServer/5/query?' + params, {
       signal: AbortSignal.timeout(12000),
     });
     const data = await response.json();
     if (!response.ok || !Array.isArray(data.features)) throw new Error('Ditches unavailable');
+    return data;
+  })().catch(error => {
+    ditchDataRequest = undefined;
+    throw error;
+  });
+  return ditchDataRequest;
+}
+
+async function loadDitches() {
+  try {
+    const data = await requestDitchData();
     ditchPaths = data.features.flatMap(({ geometry, properties }) => {
       if (!geometry) return [];
       const paths = geometry.type === 'LineString' ? [geometry.coordinates] : geometry.coordinates;
