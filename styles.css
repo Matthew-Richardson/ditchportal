@@ -29,7 +29,7 @@ button:disabled { cursor: default; opacity: .6; }
 .county-bar { background: #fff; border-bottom: 3px solid var(--county-blue); }
 .county-bar .page-width { display: flex; align-items: center; gap: clamp(.75rem, 2vw, 2rem); min-height: 4.35rem; padding-block: .4rem; }
 .county-logo { display: block; width: min(11.75rem, 32%); height: auto; flex: none; }
-.county-bar button { margin-left: auto; }
+.header-actions { display: flex; flex-shrink: 0; flex-wrap: wrap; gap: var(--control-gap); margin-left: auto; }
 h1 {
   color: var(--field-dark);
   font: 700 clamp(1.35rem, 3vw, 2.2rem) / 1.08 Arial, Helvetica, sans-serif;
@@ -39,10 +39,11 @@ h1 {
 .step-progress { color: var(--field-dark); font-weight: 700; margin-bottom: .55rem; }
 .step-instructions { line-height: 1.4; margin: .4rem 0 .55rem; }
 #expanded-step-progress { margin: .4rem 0 0; padding: .25rem .75rem 0; }
+#layout:not([data-active-step="home"]) .home-panel,
 #layout:not([data-active-step="choose"]) .choice-panel,
 #layout:not([data-active-step="map"]) .map-panel,
 #layout:not([data-active-step="review"]) .queue-panel,
-#layout:is([data-active-step="choose"], [data-active-step="map"], [data-active-step="review"]) .form-panel:not(.choice-panel),
+#layout:is([data-active-step="home"], [data-active-step="choose"], [data-active-step="map"], [data-active-step="review"]) .form-panel:not(.choice-panel),
 #layout:not([data-active-step="damage"]) [data-form-step="damage"],
 #layout:not([data-active-step="impact"]) [data-form-step="impact"],
 #layout:not([data-active-step="contact"]) [data-form-step="contact"] { display: none; }
@@ -153,20 +154,28 @@ footer a { color: var(--county-blue); }
 .damage-type-label::before { display: none; }
 #report-help { width: min(32rem, 100% - 2rem); max-height: calc(100dvh - 2rem); padding: 1.15rem; color: var(--ink); background: white; border: 2px solid var(--field-green); border-radius: .8rem; }
 dialog::backdrop { background: #14251bb3; }
-#reported-damage {
-  width: min(64rem, 100% - 1rem);
-  max-height: calc(100dvh - 1rem);
-  padding: 0;
-  color: var(--ink);
-  background: white;
-  border: 1px solid var(--rule);
-  border-radius: .8rem;
+.home-panel {
+  display: grid;
+  grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas: "intro map" "lookup map";
+  gap: 1rem;
+  align-items: start;
 }
-.reported-damage-note { margin: 0 .75rem .55rem; font-size: .9rem; }
-.report-reference-search { display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); margin: 0 .75rem .55rem; }
-.report-reference-search label { font-weight: 650; }
-.report-reference-search input { flex: 1 1 13rem; min-width: 0; min-height: 2.75rem; }
-#reported-damage-map { height: clamp(13rem, 62dvh, 36rem); background: #e1e9de; }
+.home-intro { grid-area: intro; }
+.home-lookup { grid-area: lookup; }
+.home-intro, .home-lookup { display: grid; gap: var(--control-gap); padding: clamp(1rem, 2vw, 1.4rem); }
+.home-intro h2 { font-size: 1.5rem; }
+.home-intro p, .home-lookup p { line-height: 1.45; }
+.home-intro .primary { min-height: 3rem; }
+.home-map-card { grid-area: map; min-width: 0; }
+.home-map-card .panel-head { flex-wrap: wrap; padding: .75rem 1rem; }
+.home-map-card .panel-head h2 { margin-bottom: .2rem; }
+.home-map-card .map-controls { margin-left: auto; }
+.reported-damage-note { padding: 0 1rem .75rem; font-size: .8rem; line-height: 1.4; color: var(--muted); }
+.report-reference-search { display: flex; flex-wrap: wrap; align-items: center; gap: var(--control-gap); }
+.report-reference-search input { flex: 1 1 10rem; width: 0; min-width: 0; min-height: 2.75rem; }
+#reported-damage-map { height: clamp(25rem, 64svh, 46rem); background: #e1e9de; }
 :is(#map, #reported-damage-map) .leaflet-control-zoom { border: 0; box-shadow: none; }
 :is(#map, #reported-damage-map) .leaflet-control-zoom a { border: 1px solid #aebdab; border-radius: .35rem; }
 :is(#map, #reported-damage-map) .leaflet-control-zoom a + a { margin-top: .5rem; }
@@ -181,12 +190,19 @@ dialog::backdrop { background: #14251bb3; }
 #report-help ol { margin: .3rem 0 .55rem; padding-left: 1.4rem; }
 #report-help form { display: flex; justify-content: end; margin-top: .9rem; }
 
+@media (max-width: 850px) {
+  .home-panel { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto; grid-template-areas: "intro" "map" "lookup"; gap: .75rem; }
+  .home-intro, .home-lookup { padding: 1rem; }
+  #reported-damage-map { height: clamp(20rem, 60svh, 36rem); }
+}
+
 @media (max-width: 700px) {
   .page-width { width: calc(100% - 1rem); }
   main { padding-top: .5rem; }
   .county-bar .page-width { min-height: 3.25rem; gap: .55rem; }
   .county-logo { width: min(9.5rem, 29%); }
   .county-bar button { padding-inline: .4rem; }
+  .header-actions { gap: .5rem; }
   .contact-fields { display: block; }
   .map-panel { height: auto; }
   .map-panel .panel-head { margin: 0; min-height: 0; padding: .15rem .55rem; }
@@ -202,6 +218,8 @@ dialog::backdrop { background: #14251bb3; }
   .legend { font-size: .75rem; gap: .3rem .65rem; }
 }
 @media (max-width: 420px) {
+  .county-bar h1 { font-size: 1.15rem; }
+  .home-map-card .panel-head { padding: .65rem .75rem; }
   #report-help { width: calc(100% - 1rem); max-height: calc(100dvh - 1rem); padding: .8rem; }
   #report-help section { margin-top: .5rem; padding-top: .45rem; }
   #report-help form { margin-top: .65rem; }

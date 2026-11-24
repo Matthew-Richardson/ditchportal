@@ -1,11 +1,14 @@
 import { config } from './config.js?v=public-reports';
 import { canSubmit, globalId, sendReports } from './intake.js';
-import { setupPublicReports } from './public-reports.js?v=damage-labels';
+import { setupPublicReports } from './public-reports.js?v=map-home';
 
 const $ = id => document.getElementById(id);
 const helpDialog = $('report-help');
-$('show-help').addEventListener('click', () => helpDialog.showModal());
-helpDialog.showModal();
+let reportingHelpSeen = false;
+$('show-help').addEventListener('click', () => {
+  $('confirm-help').textContent = $('layout').dataset.activeStep === 'home' ? 'Start reporting' : 'Continue';
+  helpDialog.showModal();
+});
 
 const L = window.L;
 const COUNTY = 'https://gis.lpcgov.org/arcgis/rest/services';
@@ -29,7 +32,8 @@ let lastSavedReportId;
 let prefilledContact = null;
 let reportPage = 0;
 const reportSteps = ['choose', 'map', 'damage', 'impact', 'contact'];
-const stepHeadings = { choose: 'choice-title', map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
+const stepHeadings = { home: 'home-title', choose: 'choice-title', map: 'map-title', damage: 'form-title', impact: 'impact-title', contact: 'contact-title', review: 'queue-title' };
+let lastReportingStep = 'choose';
 let batchId = globalId();
 let mode = null;
 let points = [];
@@ -71,7 +75,7 @@ const topo = L.tileLayer(topoUrl, topoOptions).addTo(map);
 const openPublicReports = setupPublicReports(L, config, {
   countyBounds, topoUrl, topoOptions, addMappedDitches, damageColor: damageStyle.color, damageOutline, ditchDetailZoom,
 });
-$('view-submitted-reports').addEventListener('click', () => openPublicReports?.(latestReceipt));
+$('view-submitted-reports').addEventListener('click', () => setStep('home', true, latestReceipt));
 const aerial = L.tileLayer(COUNTY + '/Orthos/WM2025Orthos2/MapServer/tile/{z}/{y}/{x}', {
   bounds: countyBounds, minNativeZoom: 11, maxZoom: maxMapZoom, attribution: 'La Plata County GIS, 2025 aerial imagery',
 });
@@ -200,6 +204,7 @@ const ditchLabels = L.layerGroup().addTo(map);
 
 function renderProgress() {
   const step = $('layout').dataset.activeStep;
+  if (step === 'home') return;
   const location = editing ? queue.findIndex(report => report.id === editing) + 1 : queue.length + 1;
   const progress = step === 'review'
     ? (queue.length ? 'Review · Location ' + (reportPage + 1) + ' of ' + queue.length : 'Review reports')
@@ -209,7 +214,7 @@ function renderProgress() {
   }
 }
 
-function setStep(step, focusHeading = false) {
+function setStep(step, focusHeading = false, receipt = null) {
   if (step === 'contact' && !editing && !prefilledContact && !contactFields.some(field => $(field).value)) {
     const previous = queue.find(report => report.id === lastSavedReportId) ?? queue.at(-1);
     if (previous) {
@@ -221,10 +226,18 @@ function setStep(step, focusHeading = false) {
     }
   }
   $('layout').dataset.activeStep = step;
+  $('step-progress').hidden = step === 'home';
+  $('go-home').hidden = step === 'home';
+  if (step !== 'home') lastReportingStep = step;
   renderProgress();
   if (focusHeading) {
     window.scrollTo(0, 0);
-    $(stepHeadings[step]).focus({ preventScroll: true });
+    $(receipt ? 'reported-damage-title' : stepHeadings[step]).focus({ preventScroll: true });
+  }
+  if (step === 'home') {
+    $('start-report').textContent = hasDraft() ? 'Continue report' : queue.length ? 'Add another location' : 'Start a report';
+    openPublicReports?.(receipt);
+    if (receipt) $('reported-damage-title').scrollIntoView({ block: 'nearest' });
   }
   if (step === 'map') {
     map.invalidateSize({ pan: false });
@@ -235,6 +248,24 @@ function setStep(step, focusHeading = false) {
     }
   }
 }
+
+function beginReport(showInstructions = true) {
+  if (sending || uncertain || preparingPhotos) return;
+  setStep(hasDraft() ? lastReportingStep : 'choose', true);
+  if (showInstructions && !reportingHelpSeen) {
+    $('confirm-help').textContent = 'Start reporting';
+    helpDialog.showModal();
+  }
+  reportingHelpSeen = true;
+}
+
+$('start-report').addEventListener('click', () => beginReport());
+$('go-home').addEventListener('click', () => setStep('home', true));
+helpDialog.querySelector('form').addEventListener('submit', event => {
+  event.preventDefault();
+  helpDialog.close();
+  if ($('layout').dataset.activeStep === 'home') beginReport(false);
+});
 for (const button of document.querySelectorAll('[data-go]')) {
   button.addEventListener('click', () => {
     if (button.dataset.check === 'map') {
@@ -762,6 +793,7 @@ function renderQueue() {
   $('queue-actions').hidden = queue.length === 0;
   $('review-instructions').hidden = queue.length === 0;
   $('review-saved').hidden = queue.length === 0;
+  $('home-review-saved').hidden = queue.length === 0;
   reportPage = Math.max(0, Math.min(reportPage, queue.length - 1));
   renderProgress();
   $('queue-pagination').hidden = queue.length < 2;
@@ -815,6 +847,8 @@ function updateControls() {
   $('report-fields').disabled = locked;
   for (const control of document.querySelectorAll('#map-center, #undo, #clear, [data-mode]')) control.disabled = locked;
   $('add-another').disabled = locked || Boolean(editing);
+  $('start-report').disabled = locked;
+  $('go-home').disabled = sending || preparingPhotos;
   $('send').disabled = !intakeReady || !queue.length || sending || preparingPhotos;
   $('send-help').textContent = intakeReady ? 'Saved reports stay in this tab until you send them.' :
     'Online submissions are unavailable.';
@@ -823,14 +857,16 @@ function updateControls() {
 }
 
 $('add-another').addEventListener('click', () => setStep('choose', true));
-$('review-saved').addEventListener('click', () => {
+function reviewSavedReports() {
   if (hasDraft()) {
-    setStep('map', true);
+    setStep(lastReportingStep === 'choose' ? 'map' : lastReportingStep, true);
     message($('location-status'), 'Finish this location before reviewing your saved reports.', true);
     return;
   }
   setStep('review', true);
-});
+}
+$('review-saved').addEventListener('click', reviewSavedReports);
+$('home-review-saved').addEventListener('click', reviewSavedReports);
 
 $('send').addEventListener('click', async () => {
   if (!intakeReady || sending || !queue.length) return;
@@ -884,4 +920,5 @@ window.addEventListener('beforeunload', event => {
 
 renderDrawing();
 renderQueue();
+setStep('home');
 checkIntake().then(updateControls);

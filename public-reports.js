@@ -1,6 +1,6 @@
 const publicFields = ['damage_type', 'observed_date', 'batch_id'];
 const dateFormat = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium', timeZone: 'UTC' });
-const reportZoom = { maxZoom: 16, padding: [32, 32] };
+const reportZoom = { maxZoom: 16, padding: [32, 32], animate: false };
 
 function normalizeReference(value) {
   return value.trim().replace(/^\{(.*)\}$/, '$1').toUpperCase();
@@ -90,11 +90,14 @@ export function setupPublicReports(L, config, {
   const intakeUrls = [config.point.url, config.line.url].map(url => url.replace(/\/$/, '').toLowerCase());
   const pointUrl = publicLayerUrl(config.publicReports?.point, intakeUrls);
   const lineUrl = publicLayerUrl(config.publicReports?.line, intakeUrls);
-  if (!pointUrl || !lineUrl) return;
+  if (!pointUrl || !lineUrl) {
+    document.getElementById('reported-damage-status').textContent = 'The public damage map is unavailable.';
+    return;
+  }
 
-  const button = document.getElementById('show-reported-damage');
-  const dialog = document.getElementById('reported-damage');
+  const mapElement = document.getElementById('reported-damage-map');
   const status = document.getElementById('reported-damage-status');
+  const refreshButton = document.getElementById('refresh-public-map');
   const ditchStatus = document.getElementById('reported-ditch-status');
   const search = document.getElementById('report-reference-search');
   const referenceInput = document.getElementById('report-reference');
@@ -127,7 +130,7 @@ export function setupPublicReports(L, config, {
 
   function renderDamageLabels() {
     damageLabels.clearLayers();
-    if (!dialog.open || map.getZoom() < ditchDetailZoom) return;
+    if (!mapElement.clientWidth || map.getZoom() < ditchDetailZoom) return;
     const bounds = map.getBounds().pad(-.035);
     const occupied = [];
     for (const layer of labelLayers) {
@@ -170,13 +173,17 @@ export function setupPublicReports(L, config, {
     });
     highlights.addLayer(selected);
     map.closePopup();
-    if (!submittedBounds) map.fitBounds(selected.getBounds(), reportZoom);
+    if (!submittedBounds) {
+      map.fitBounds(selected.getBounds(), reportZoom);
+      mapElement.scrollIntoView({ block: 'nearest' });
+    }
     updateSearchStatus(matches.length === 1 ? '1 matching report highlighted.' : matches.length + ' matching reports highlighted.');
   }
 
   search.addEventListener('submit', event => {
     event.preventDefault();
     if (findButton.disabled) return;
+    submission = null;
     highlightReference(normalizeReference(referenceInput.value));
   });
 
@@ -185,9 +192,8 @@ export function setupPublicReports(L, config, {
     updateSearchStatus('');
   });
 
-  async function openMap(receipt = null) {
+  async function openMap(receipt = null, resetView = true) {
     submission = receipt;
-    dialog.showModal();
     if (!map) {
       map = L.map('reported-damage-map', { maxZoom: 17, scrollWheelZoom: false });
       L.tileLayer(topoUrl, topoOptions).addTo(map);
@@ -197,15 +203,19 @@ export function setupPublicReports(L, config, {
       highlights = L.layerGroup().addTo(map);
       damageLabels = L.layerGroup().addTo(map);
       map.on('moveend resize', renderDamageLabels);
+      new ResizeObserver(() => {
+        if (mapElement.clientWidth) map.invalidateSize({ pan: false });
+      }).observe(mapElement);
     } else {
       map.invalidateSize();
-      map.fitBounds(receipt?.bounds ?? countyBounds, reportZoom);
+      if (resetView) map.fitBounds(receipt?.bounds ?? countyBounds, reportZoom);
     }
     showDitches();
-    referenceInput.value = receipt?.reference ?? '';
+    if (resetView) referenceInput.value = receipt?.reference ?? '';
     updateSearchStatus('');
     if (loading) return;
     loading = true;
+    refreshButton.disabled = true;
     reports.clearLayers();
     highlights.clearLayers();
     labelLayers = [];
@@ -238,16 +248,20 @@ export function setupPublicReports(L, config, {
       publicFeatures = [...points, ...lines];
       referenceInput.disabled = !publicFeatures.length;
       findButton.disabled = !publicFeatures.length;
-      status.textContent = points.length || lines.length ? '' : 'No reports are available for public display.';
-      if (submission && dialog.open) highlightReference(submission.reference, submission.bounds);
+      status.textContent = points.length || lines.length ?
+        points.length + (points.length === 1 ? ' damage spot' : ' damage spots') + ' · ' +
+        lines.length + (lines.length === 1 ? ' damaged stretch' : ' damaged stretches') :
+        'No reports are available for public display.';
+      if (mapElement.clientWidth && referenceInput.value) highlightReference(normalizeReference(referenceInput.value), submission?.bounds);
     } catch {
-      status.textContent = 'Reports are temporarily unavailable. Close and reopen the map to try again.';
+      status.textContent = 'Reports are temporarily unavailable. Select Refresh to try again.';
     } finally {
       loading = false;
+      refreshButton.disabled = false;
     }
   }
 
-  button.hidden = false;
-  button.addEventListener('click', () => openMap());
+  document.getElementById('public-county-view').addEventListener('click', () => map?.fitBounds(countyBounds, reportZoom));
+  refreshButton.addEventListener('click', () => openMap(submission, false));
   return openMap;
 }

@@ -6,22 +6,66 @@
   <meta name="description" content="Report irrigation ditch damage in La Plata County, Colorado.">
   <title>Ditch Damage Reporting | La Plata County</title>
   <link rel="stylesheet" href="./vendor/leaflet.css">
-  <link rel="stylesheet" href="./styles.css?v=damage-labels">
+  <link rel="stylesheet" href="./styles.css?v=map-home">
   <script src="./vendor/leaflet.js" defer></script>
-  <script type="module" src="./app.js?v=damage-labels"></script>
+  <script type="module" src="./app.js?v=map-home"></script>
 </head>
 <body>
   <header class="county-bar">
     <div class="page-width">
       <img class="county-logo" src="./assets/la-plata-county-logo.png" width="2001" height="580" alt="La Plata County, Colorado">
-      <h1>Report ditch damage</h1>
-      <button type="button" class="subtle" id="show-help" aria-haspopup="dialog">Help</button>
+      <h1>Ditch damage reporting</h1>
+      <div class="header-actions">
+        <button type="button" class="subtle" id="go-home" hidden>Home</button>
+        <button type="button" class="subtle" id="show-help" aria-haspopup="dialog">Help</button>
+      </div>
     </div>
   </header>
   <main class="page-width">
     <p id="setup-status" class="banner" role="status" hidden></p>
-    <p class="step-progress" id="step-progress" role="status">Location 1 · Step 1 of 5</p>
-    <div class="layout" id="layout" data-active-step="choose">
+    <p class="step-progress" id="step-progress" role="status" hidden>Location 1 · Step 1 of 5</p>
+    <div class="layout" id="layout" data-active-step="home">
+      <section class="home-panel" id="reported-damage" aria-labelledby="home-title">
+        <div class="panel home-intro">
+          <h2 id="home-title" tabindex="-1">Report ditch damage</h2>
+          <p>Help La Plata County identify damage to ditches and irrigation infrastructure from the November 1 flood. You can report individual spots or damaged stretches and include photos.</p>
+          <button type="button" class="primary" id="start-report">Start a report</button>
+          <button type="button" class="outline" id="home-review-saved" hidden>Review saved reports</button>
+          <p class="help">Reports help identify potential local, state, and federal assistance. Submitting a report does not guarantee assistance.</p>
+        </div>
+        <section class="panel home-map-card" aria-labelledby="reported-damage-title">
+          <div class="panel-head">
+            <div>
+              <h2 id="reported-damage-title" tabindex="-1">Resident-reported ditch damage</h2>
+              <p id="reported-damage-status" class="help" role="status">Loading reports…</p>
+            </div>
+            <div class="map-controls">
+              <button type="button" class="subtle" id="public-county-view">County view</button>
+              <button type="button" class="subtle" id="refresh-public-map">Refresh</button>
+            </div>
+          </div>
+          <div id="reported-damage-map" role="region" aria-label="Reported ditch damage map"></div>
+          <div class="map-footer">
+            <div class="legend">
+              <span><i class="ditch-swatch"></i>Mapped ditch</span>
+              <span><i class="report-point-swatch"></i>Damage spot</span>
+              <span><i class="report-line-swatch"></i>Damaged stretch</span>
+            </div>
+            <p id="reported-ditch-status" class="help" role="status" hidden></p>
+          </div>
+          <p class="reported-damage-note">The public map shows only some report information. Contact details, notes, and photos are private. Some locations may be missing or take time to appear.</p>
+        </section>
+        <section class="panel home-lookup" aria-labelledby="lookup-title">
+          <h2 id="lookup-title">Find my report</h2>
+          <p>Enter the reference number from your submission confirmation to find your reported locations.</p>
+          <form class="report-reference-search" id="report-reference-search" role="search">
+            <label class="sr-only" for="report-reference">Submission reference number</label>
+            <input id="report-reference" name="reference" type="search" maxlength="38" placeholder="Submission reference number" autocomplete="off" required disabled>
+            <button id="find-report-reference" class="subtle" type="submit" disabled>Find</button>
+          </form>
+          <p id="report-reference-status" class="help" role="status" hidden></p>
+        </section>
+      </section>
       <section class="panel form-panel choice-panel" aria-labelledby="choice-title">
         <h2 id="choice-title" tabindex="-1">Is the damage at one spot or along a stretch of ditch?</h2>
         <p class="step-instructions">Choose one to start. You can add more locations before sending your report to the county.</p>
@@ -31,7 +75,7 @@
         </div>
         <p class="step-instructions">Some ditches are missing from the county map. You can still report damage there.</p>
         <div class="choice-actions">
-          <button type="button" class="subtle" id="show-reported-damage" aria-haspopup="dialog" hidden>View reported damage</button>
+          <button type="button" class="subtle" data-go="home">View reported damage</button>
           <button type="button" class="subtle" id="review-saved" hidden>Review saved locations</button>
         </div>
       </section>
@@ -194,7 +238,7 @@
         <p id="send-message" class="form-message" role="status" hidden></p>
         <div class="step-actions">
           <button type="button" class="subtle" data-go="choose">Start a location</button>
-          <button type="button" class="subtle" id="view-submitted-reports" aria-haspopup="dialog" hidden>View my reports</button>
+          <button type="button" class="subtle" id="view-submitted-reports" hidden>View my reports</button>
         </div>
       </section>
     </div>
@@ -204,29 +248,6 @@
     </footer>
   </main>
   <dialog id="expanded-map" aria-label="Full-screen damage map"></dialog>
-  <dialog id="reported-damage" aria-labelledby="reported-damage-title">
-    <div class="panel-head">
-      <h2 id="reported-damage-title">Resident-reported ditch damage</h2>
-      <form method="dialog"><button class="subtle" autofocus>Close</button></form>
-    </div>
-    <p class="reported-damage-note">The public map shows only some report information. Contact details, notes, and photos are private. Some locations may be missing or take time to appear.</p>
-    <form class="report-reference-search" id="report-reference-search" role="search">
-      <label for="report-reference">Find my report</label>
-      <input id="report-reference" name="reference" type="search" maxlength="38" placeholder="Submission reference number" autocomplete="off" required disabled>
-      <button id="find-report-reference" class="subtle" type="submit" disabled>Find</button>
-    </form>
-    <p id="report-reference-status" class="reported-damage-note" role="status" hidden></p>
-    <div id="reported-damage-map" role="region" aria-label="Reported ditch damage map"></div>
-    <div class="map-footer">
-      <div class="legend">
-        <span><i class="ditch-swatch"></i>Mapped ditch</span>
-        <span><i class="report-point-swatch"></i>Damage spot</span>
-        <span><i class="report-line-swatch"></i>Damaged stretch</span>
-      </div>
-      <p id="reported-damage-status" class="help" role="status"></p>
-      <p id="reported-ditch-status" class="help" role="status" hidden></p>
-    </div>
-  </dialog>
   <dialog id="report-help" aria-labelledby="help-title">
     <h2 id="help-title" tabindex="-1" autofocus>Before you report</h2>
     <section>
@@ -247,7 +268,7 @@
       <p>Reports help us assess damage and identify potential local, state, and federal assistance.</p>
       <p><strong>Submitting a report does not guarantee assistance.</strong></p>
     </section>
-    <form method="dialog"><button class="primary">Start reporting</button></form>
+    <form method="dialog"><button class="primary" id="confirm-help">Start reporting</button></form>
   </dialog>
 </body>
 </html>
